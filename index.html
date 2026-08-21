@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAF-PP · Sistema de Análise Financeira de Projetos Produtivos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,400;0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #E7DCBE;
+    --paper-2: #DECBA0;
+    --card: #F7F1DE;
+    --card-2: #FBF7EC;
+    --ink: #2A2016;
+    --ink-soft: #5B4C38;
+    --ink-faint: #8C7A5E;
+    --line: #B9A06B;
+    --line-soft: #CDBB8C;
+    --green: #3F5A32;
+    --green-dark: #2C4021;
+    --green-soft: #6C8859;
+    --ochre: #B4791E;
+    --ochre-dark: #8F5F14;
+    --brick: #8A3A2B;
+    --brick-soft: #C0715F;
+    --shadow: rgba(35, 26, 14, 0.22);
+    --radius: 3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(185,160,107,0.16) 28px),
+      var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  h1,h2,h3,h4{
+    font-family:'Zilla Slab', serif;
+    font-weight:600;
+    margin:0;
+    color:var(--ink);
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input, select{font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- Shell ---------- */
+  #app{max-width:1280px;margin:0 auto;padding:22px 20px 60px;}
+
+  .masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+    border-bottom:3px double var(--ink);
+    padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;
+  }
+  .masthead .brand-eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px;
+  }
+  .masthead h1{font-size:30px;letter-spacing:.01em;}
+  .masthead .sub{font-size:13px;color:var(--ink-soft);margin-top:4px;font-style:italic;}
+  .masthead-right{text-align:right;font-size:12px;color:var(--ink-soft);}
+  .save-state{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-bottom:6px;}
+  .save-dot{width:7px;height:7px;border-radius:50%;background:var(--green-soft);}
+  .save-dot.busy{background:var(--ochre);}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+
+  /* ---------- Layout: side tabs + content ---------- */
+  .layout{display:flex;gap:0;align-items:flex-start;}
+  nav.tabs{
+    width:206px;flex:0 0 206px;display:flex;flex-direction:column;gap:2px;
+    position:sticky;top:14px;
+  }
+  nav.tabs button{
+    text-align:left;background:var(--paper-2);border:1px solid var(--line);
+    border-right:none;
+    padding:10px 12px;font-family:'Zilla Slab',serif;font-size:14.5px;font-weight:500;
+    color:var(--ink-soft);position:relative;
+    border-radius:2px 0 0 2px;
+  }
+  nav.tabs button .n{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-faint);display:block;letter-spacing:.08em;}
+  nav.tabs button:hover{background:var(--card);color:var(--ink);}
+  nav.tabs button.active{
+    background:var(--card-2);color:var(--ink);font-weight:600;
+    border-color:var(--line);
+    box-shadow:inset 3px 0 0 var(--ochre);
+  }
+  nav.tabs button.active .n{color:var(--ochre-dark);}
+
+  main.content{
+    flex:1;min-width:0;background:var(--card-2);
+    border:1px solid var(--line);
+    padding:22px 26px 30px;min-height:520px;
+  }
+
+  .panel-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;
+    border-bottom:1px solid var(--line-soft);padding-bottom:10px;margin-bottom:18px;}
+  .panel-head h2{font-size:21px;}
+  .panel-head .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ochre-dark);}
+  .panel-note{font-size:12.5px;color:var(--ink-soft);margin:-10px 0 18px;line-height:1.55;background:var(--card);border-left:3px solid var(--green-soft);padding:9px 12px;}
+
+  fieldset.block{border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px 16px 14px;margin-bottom:20px;background:var(--card);}
+  fieldset.block legend{font-family:'Zilla Slab',serif;font-weight:600;font-size:13.5px;padding:0 8px;color:var(--green-dark);}
+
+  .grid{display:grid;gap:12px;}
+  .grid.g2{grid-template-columns:1fr 1fr;}
+  .grid.g3{grid-template-columns:1fr 1fr 1fr;}
+  .grid.g4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  @media (max-width:760px){.grid.g2,.grid.g3,.grid.g4{grid-template-columns:1fr;}}
+
+  label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-soft);}
+  label.field span{font-weight:600;color:var(--ink);}
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    border:1px solid var(--line);background:var(--card-2);color:var(--ink);
+    padding:7px 8px;border-radius:2px;font-size:13px;width:100%;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--ochre);outline-offset:0;border-color:var(--ochre);}
+  input[readonly]{background:var(--paper-2);color:var(--ink-soft);}
+
+  table{border-collapse:collapse;width:100%;font-size:12.6px;}
+  table.data th, table.data td{border:1px solid var(--line-soft);padding:6px 7px;text-align:right;}
+  table.data th{background:var(--paper-2);font-family:'Zilla Slab',serif;font-weight:600;color:var(--ink);text-align:center;font-size:11.6px;}
+  table.data td:first-child, table.data td.txt, table.data th:first-child{text-align:left;}
+  table.data td input, table.data td select{border:none;background:transparent;padding:3px 2px;text-align:right;width:100%;}
+  table.data td.txt input{text-align:left;}
+  table.data tr:nth-child(even){background:rgba(185,160,107,0.09);}
+  table.data tr.total-row{background:var(--paper-2);font-weight:700;}
+  table.data tr.total-row td{border-top:2px solid var(--ink);}
+  .wrap-table{overflow-x:auto;border:1px solid var(--line-soft);}
+
+  .row-actions{display:flex;gap:6px;justify-content:center;}
+  .icon-btn{border:1px solid var(--line);background:var(--card-2);color:var(--brick);width:24px;height:24px;border-radius:2px;font-size:13px;line-height:1;}
+  .icon-btn:hover{background:var(--brick);color:#fff;}
+
+  .btn{
+    border:1px solid var(--ink);background:var(--card-2);color:var(--ink);
+    padding:8px 14px;border-radius:2px;font-family:'Zilla Slab',serif;font-weight:600;font-size:13px;
+  }
+  .btn:hover{background:var(--ink);color:var(--card-2);}
+  .btn.primary{background:var(--green);border-color:var(--green-dark);color:#fff;}
+  .btn.primary:hover{background:var(--green-dark);}
+  .btn.ochre{background:var(--ochre);border-color:var(--ochre-dark);color:#fff;}
+  .btn.ochre:hover{background:var(--ochre-dark);}
+  .btn.ghost{background:transparent;}
+  .btn.small{padding:5px 10px;font-size:12px;}
+  .btn.danger{border-color:var(--brick);color:var(--brick);}
+  .btn.danger:hover{background:var(--brick);color:#fff;}
+
+  .add-row-btn{margin-top:8px;}
+
+  /* dashboard */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  @media (max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+  .kpi{border:1px solid var(--line-soft);background:var(--card);padding:14px 14px 12px;position:relative;}
+  .kpi .lbl{font-size:10.6px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .kpi .val{font-family:'Zilla Slab',serif;font-size:24px;font-weight:700;margin-top:5px;color:var(--green-dark);}
+  .kpi .val.neg{color:var(--brick);}
+  .kpi .sub{font-size:11px;color:var(--ink-faint);margin-top:3px;}
+
+  .stamp{
+    display:inline-block;border:3px solid var(--green);color:var(--green-dark);
+    padding:10px 20px;transform:rotate(-3deg);font-family:'Zilla Slab',serif;
+    font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:13px;
+    border-radius:6px;position:relative;background:rgba(63,90,50,0.05);
+  }
+  .stamp::before{content:'';position:absolute;inset:4px;border:1px dashed var(--green-soft);border-radius:3px;}
+  .stamp.warn{border-color:var(--brick);color:var(--brick);background:rgba(138,58,43,0.05);}
+  .stamp.warn::before{border-color:var(--brick-soft);}
+  .stamp-wrap{display:flex;justify-content:flex-end;margin:6px 0 20px;}
+
+  .bars{display:flex;align-items:flex-end;gap:10px;height:170px;border-bottom:2px solid var(--ink);padding:0 4px 0 0;margin:14px 0 4px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;}
+  .bar{width:100%;max-width:46px;background:var(--green-soft);position:relative;border-radius:2px 2px 0 0;}
+  .bar.neg{background:var(--brick-soft);}
+  .bar-col .bv{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
+  .bar-col .bl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink);margin-top:4px;font-weight:600;}
+
+  .two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}
+  @media (max-width:900px){.two-col{grid-template-columns:1fr;}}
+
+  .note-list{font-size:12.5px;color:var(--ink-soft);}
+  .note-list li{margin-bottom:5px;}
+
+  .tag{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+    padding:2px 6px;border-radius:2px;border:1px solid currentColor;}
+  .tag.novo{color:var(--ochre-dark);}
+  .tag.existente{color:var(--green-dark);}
+  .tag.financiado{color:var(--brick);}
+
+  .helper-btn{font-size:11px;color:var(--green-dark);text-decoration:underline;background:none;border:none;padding:0;cursor:pointer;}
+
+  .scen-table td, .scen-table th{text-align:center;}
+  .scen-table td.txt{text-align:left;}
+  .scen-table th.otim{color:var(--green-dark);}
+  .scen-table th.pess{color:var(--brick);}
+
+  footer.appfoot{margin-top:26px;text-align:center;font-size:11px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;}
+
+  .empty-hint{font-size:12px;color:var(--ink-faint);font-style:italic;padding:8px 2px;}
+
+  ::selection{background:var(--ochre);color:#fff;}
+
+  /* ---------- Confirm modal (substitui window.confirm) ---------- */
+  .confirm-overlay{
+    position:fixed;inset:0;background:rgba(20,15,8,0.55);
+    display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;
+  }
+  .confirm-box{
+    background:var(--card-2);border:1px solid var(--line);border-radius:4px;
+    max-width:360px;width:100%;padding:20px 20px 16px;box-shadow:0 12px 30px var(--shadow);
+  }
+  .confirm-box p{margin:0 0 16px;font-size:13.5px;color:var(--ink);line-height:1.5;}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:8px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);
+    background:var(--ink);color:var(--card-2);padding:10px 18px;border-radius:4px;
+    font-size:12.5px;box-shadow:0 8px 20px var(--shadow);z-index:220;
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  /* ============================== RESPONSIVO (CELULAR / TABLET) ============================== */
+  @media (max-width: 860px){
+    #app{padding:14px 12px 40px;}
+
+    .masthead{flex-direction:column;align-items:stretch;gap:10px;padding-bottom:12px;}
+    .masthead h1{font-size:22px;}
+    .masthead-right{text-align:left;}
+    .save-state{justify-content:flex-start;}
+    .top-actions{justify-content:flex-start;}
+    .top-actions .btn{flex:1 1 auto;}
+
+    /* sidebar vira faixa horizontal de abas roláveis, no topo */
+    .layout{flex-direction:column;}
+    nav.tabs{
+      width:100%;flex:0 0 auto;flex-direction:row;position:static;
+      overflow-x:auto;-webkit-overflow-scrolling:touch;gap:6px;
+      padding-bottom:8px;margin-bottom:2px;scrollbar-width:thin;
+    }
+    nav.tabs button{
+      flex:0 0 auto;white-space:nowrap;border:1px solid var(--line);border-radius:2px;
+      padding:9px 12px;font-size:13.5px;scroll-snap-align:start;
+    }
+    nav.tabs{scroll-snap-type:x proximity;}
+    nav.tabs button.active{box-shadow:inset 0 -3px 0 var(--ochre);}
+
+    main.content{padding:16px 14px 24px;border-top:none;}
+
+    .kpi-grid{grid-template-columns:1fr 1fr;gap:10px;}
+    .kpi{padding:11px 11px 10px;}
+    .kpi .val{font-size:19px;}
+
+    .grid.g2, .grid.g3, .grid.g4{grid-template-columns:1fr;}
+
+    .two-col{grid-template-columns:1fr;}
+
+    .stamp-wrap{justify-content:flex-start;}
+    .stamp{font-size:11.5px;padding:8px 14px;}
+
+    table.data{font-size:11.8px;}
+    table.data th, table.data td{padding:7px 6px;}
+
+    /* alvos de toque maiores */
+    .icon-btn{width:30px;height:30px;font-size:14px;}
+    input[type=text], input[type=number], input[type=date], select{padding:9px 8px;font-size:14px;}
+    .btn{padding:10px 14px;}
+    .btn.small{padding:8px 12px;}
+
+    .bars{height:150px;}
+
+    fieldset.block{padding:14px 12px 12px;}
+  }
+  @media (max-width: 480px){
+    .kpi-grid{grid-template-columns:1fr;}
+    .masthead h1{font-size:19px;}
+    .brand-eyebrow{font-size:10px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="masthead">
+    <div>
+      <div class="brand-eyebrow">Caderno de Campo Digital — adaptado do SAF-PP (Meloni, 2017)</div>
+      <h1>Análise Financeira do Empreendimento Rural</h1>
+      <div class="sub">Preencha, edite e acompanhe a viabilidade do seu projeto — cada campo é seu para ajustar.</div>
+    </div>
+    <div class="masthead-right">
+      <div class="save-state"><span class="save-dot" id="saveDot"></span><span id="saveLabel">dados salvos neste dispositivo</span></div>
+      <div class="top-actions">
+        <button class="btn small" id="btnSample">Carregar exemplo</button>
+        <button class="btn small danger" id="btnReset">Limpar tudo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="tabs" id="tabs"></nav>
+    <main class="content" id="content"></main>
+  </div>
+
+  <footer class="appfoot">SAF-PP · adaptado para empreendimentos já em andamento — investimentos existentes não geram novo desembolso, apenas patrimônio, depreciação e reposição futura.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================== STATE ============================== */
+let uidN = 1;
+function uid(p){ return p + (uidN++); }
+
+const YEARS = [1,2,3,4,5];
+
+function defaultState(){
+  uidN = 1;
+  return {
+    meta:{
+      produtor:"Produtor(a) / Associação Rural",
+      local:"Sertão de Pernambuco",
+      atividade:"Ovinocultura (Ovinos)",
+      beneficiarios:1,
+      data: new Date().toISOString().slice(0,10)
+    },
+    premissas:{
+      impostoReceita:3,
+      tma:10,
+      anoAnalise:5,
+      mesesGiro:3
+    },
+    investimentos:[
+      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Galpão e baias",origem:"existente",quantidade:1,valorUnit:50000,vidaTotal:10,anosUso:4},
+      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Piquetes",origem:"existente",quantidade:1,valorUnit:15000,vidaTotal:15,anosUso:4},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Triturador de palma",origem:"existente",quantidade:1,valorUnit:5770,vidaTotal:8,anosUso:4},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Misturador de ração",origem:"existente",quantidade:1,valorUnit:9970,vidaTotal:8,anosUso:3},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Cerca elétrica (a adquirir)",origem:"novo_proprio",quantidade:1,valorUnit:3200,vidaTotal:10,anosUso:0}
+    ],
+    financiamentos:[
+      {id:uid('fin'),descricao:"Pronaf — parcelas em andamento (trator)",saldoDevedor:8000,parcelas:{1:2000,2:2000,3:2000,4:2000,5:0}}
+    ],
+    custos:[
+      {id:uid('cst'),descricao:"Ração / suplementação (palma, milho)",tipo:"Variável",valores:{1:9000,2:9200,3:9400,4:9600,5:9800}},
+      {id:uid('cst'),descricao:"Sanidade animal (vacinas, vermífugos)",tipo:"Variável",valores:{1:1800,2:1800,3:1900,4:1900,5:2000}},
+      {id:uid('cst'),descricao:"Mão de obra contratada",tipo:"Fixo",valores:{1:6000,2:6000,3:6300,4:6300,5:6600}},
+      {id:uid('cst'),descricao:"Energia e combustível",tipo:"Fixo",valores:{1:2400,2:2400,3:2500,4:2500,5:2600}}
+    ],
+    capitalGiro:{modo:"auto",valorManual:0},
+    receitas:[
+      {id:uid('rec'),produto:"Animal vivo (venda)",unidade:"Und.",percAutoconsumo:0,
+        quantidades:{1:60,2:60,3:62,4:62,5:65}, precos:{1:500,2:510,3:510,4:520,5:520}},
+      {id:uid('rec'),produto:"Animais para genética",unidade:"Und.",percAutoconsumo:0,
+        quantidades:{1:20,2:20,3:20,4:20,5:22}, precos:{1:5000,2:5000,3:5100,4:5100,5:5200}}
+    ],
+    cenarios:{ otimistaReceita:10, otimistaCusto:10, pessimistaReceita:10, pessimistaCusto:10 }
+  };
+}
+
+let state = defaultState();
+let activeTab = "dashboard";
+
+/* ============================== STORAGE ==============================
+   Camada dupla: tenta primeiro o armazenamento do ambiente Claude (window.storage),
+   e se não existir (ex: publicado no Cloudflare Pages, ou qualquer site fora do Claude)
+   usa localStorage do navegador. Assim o mesmo arquivo funciona nos dois lugares. */
+const STORE_KEY = "safpp:v1:data";
+let saveTimer = null;
+
+function hasClaudeStorage(){
+  return typeof window!=='undefined' && window.storage && typeof window.storage.set==='function';
+}
+
+async function storageSet(key, value){
+  if(hasClaudeStorage()){
+    try{
+      const res = await window.storage.set(key, value, false);
+      if(res) return true;
+    }catch(e){ /* cai para localStorage abaixo */ }
+  }
+  try{ localStorage.setItem(key, value); return true; }
+  catch(e){ console.error('Não foi possível salvar (localStorage indisponível)', e); return false; }
+}
+
+async function storageGet(key){
+  if(hasClaudeStorage()){
+    try{
+      const res = await window.storage.get(key, false);
+      if(res && res.value) return res.value;
+    }catch(e){ /* chave não existe nesse modo, tenta localStorage */ }
+  }
+  try{ return localStorage.getItem(key); }
+  catch(e){ return null; }
+}
+
+function markSaving(){ const d=document.getElementById('saveDot'); const l=document.getElementById('saveLabel'); if(d){d.classList.add('busy'); l.textContent='salvando...';} }
+function markSaved(ok){ const d=document.getElementById('saveDot'); const l=document.getElementById('saveLabel');
+  if(d){ d.classList.remove('busy'); l.textContent= ok? 'dados salvos neste dispositivo' : 'não foi possível salvar — dados só nesta sessão'; }
+}
+function scheduleSave(){
+  markSaving();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    const ok = await storageSet(STORE_KEY, JSON.stringify(state));
+    markSaved(ok);
+  }, 500);
+}
+async function loadState(){
+  try{
+    const raw = await storageGet(STORE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = parsed;
+      uidN = 9999; // mantém contador de ids seguro
+      markSaved(true);
+      return true;
+    }
+  }catch(e){ console.error('Falha ao carregar dados salvos', e); }
+  markSaved(false);
+  return false;
+}
+
+/* ============================== HELPERS ============================== */
+function fmtR$(n){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+}
+function fmtR$2(n){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:2});
+}
+function fmtPct(n,dec){
+  if(!isFinite(n)) return "—";
+  return (n*100).toLocaleString('pt-BR',{maximumFractionDigits:dec==null?1:dec})+"%";
+}
+function fmtNum(n,dec){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString('pt-BR',{maximumFractionDigits:dec==null?2:dec});
+}
+function num(v){ const n=parseFloat(v); return isFinite(n)?n:0; }
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+function findById(arr,id){ return arr.find(x=>x.id===id); }
+
+/* ============================== CALC ENGINE ============================== */
+function itemVidaRestante(it){
+  if(it.origem==='existente'){
+    const r = num(it.vidaTotal) - num(it.anosUso);
+    return r>0 ? r : 1;
+  }
+  return num(it.vidaTotal)>0 ? num(it.vidaTotal) : 1;
+}
+function itemValorTotal(it){ return num(it.quantidade)*num(it.valorUnit); }
+function itemDeprecAnual(it){ return itemValorTotal(it)/itemVidaRestante(it); }
+
+function calcInvestimentos(){
+  let novoProprio=0, novoFinanciado=0, patrimonioExistente=0, deprecTotal=0;
+  const reposicoes = {1:0,2:0,3:0,4:0,5:0};
+  state.investimentos.forEach(it=>{
+    const total = itemValorTotal(it);
+    const vr = itemVidaRestante(it);
+    deprecTotal += itemDeprecAnual(it);
+    if(it.origem==='novo_proprio') novoProprio += total;
+    else if(it.origem==='novo_financiado') novoFinanciado += total;
+    else patrimonioExistente += total;
+    if(vr>=1 && vr<=5){ reposicoes[Math.round(vr)] += total; }
+  });
+  return {novoProprio, novoFinanciado, patrimonioExistente, deprecTotal, reposicoes};
+}
+
+function calcCapitalGiro(custoAno1Total){
+  if(state.capitalGiro.modo==='manual') return num(state.capitalGiro.valorManual);
+  return (custoAno1Total/12) * num(state.premissas.mesesGiro||3);
+}
+
+function calcCustosPorAno(){
+  const out={1:0,2:0,3:0,4:0,5:0};
+  const fixo={1:0,2:0,3:0,4:0,5:0};
+  const variavel={1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{
+    YEARS.forEach(y=>{
+      const v = num(c.valores[y]);
+      out[y]+=v;
+      if(c.tipo==='Fixo') fixo[y]+=v; else variavel[y]+=v;
+    });
+  });
+  return {total:out, fixo, variavel};
+}
+
+function calcFinanciamentosPorAno(){
+  const out={1:0,2:0,3:0,4:0,5:0};
+  state.financiamentos.forEach(f=>{
+    YEARS.forEach(y=>{ out[y]+= num(f.parcelas[y]); });
+  });
+  return out;
+}
+
+function calcReceitasPorAno(mult){
+  mult = mult || {receita:1, custo:1};
+  const brutaComerc={1:0,2:0,3:0,4:0,5:0};
+  const autoconsumo={1:0,2:0,3:0,4:0,5:0};
+  state.receitas.forEach(r=>{
+    YEARS.forEach(y=>{
+      const q = num(r.quantidades[y]);
+      const p = num(r.precos[y]) * mult.receita;
+      const perc = clamp(num(r.percAutoconsumo)/100,0,1);
+      const totalY = q*p;
+      autoconsumo[y]+= totalY*perc;
+      brutaComerc[y]+= totalY*(1-perc);
+    });
+  });
+  return {brutaComerc, autoconsumo};
+}
+
+function buildScenario(mult){
+  mult = mult || {receita:1, custo:1};
+  const {total:custoTotal} = calcCustosPorAno();
+  const {brutaComerc, autoconsumo} = calcReceitasPorAno(mult);
+  const financ = calcFinanciamentosPorAno();
+  const inv = calcInvestimentos();
+  const giroBase = calcCapitalGiro(custoTotal[1]);
+
+  const impostoTx = clamp(num(state.premissas.impostoReceita)/100,0,1);
+
+  const anos = {};
+  YEARS.forEach(y=>{
+    const custosY = custoTotal[y]*mult.custo;
+    const impostos = brutaComerc[y]*impostoTx;
+    const receitaLiquida = brutaComerc[y]-impostos;
+    const financY = financ[y];
+    const reposY = inv.reposicoes[y]||0;
+    const fluxoCaixa = receitaLiquida - custosY - financY - reposY;
+    const lucroContabil = receitaLiquida + autoconsumo[y] - custosY - inv.deprecTotal;
+    anos[y] = {
+      brutaComerc:brutaComerc[y], autoconsumo:autoconsumo[y], impostos, receitaLiquida,
+      custos:custosY, financ:financY, reposicao:reposY, fluxoCaixa, lucroContabil
+    };
+  });
+
+  const fluxo0 = -(inv.novoProprio) - giroBase;
+  const cashflows = [fluxo0, anos[1].fluxoCaixa, anos[2].fluxoCaixa, anos[3].fluxoCaixa, anos[4].fluxoCaixa, anos[5].fluxoCaixa];
+
+  const tma = num(state.premissas.tma)/100;
+  const vpl = npv(cashflows, tma);
+  const tir = irr(cashflows);
+  const payback = paybackSimples(cashflows);
+
+  return {anos, fluxo0, cashflows, vpl, tir, payback, inv, giroBase, custoTotal};
+}
+
+function npv(cfs, rate){
+  return cfs.reduce((acc,cf,t)=> acc + cf/Math.pow(1+rate,t), 0);
+}
+function irr(cfs){
+  // bisection search for sign change of NPV(rate)
+  function f(r){ return npv(cfs,r); }
+  let lo=-0.95, hi=10, flo=f(lo), fhi=f(hi);
+  if(!isFinite(flo)||!isFinite(fhi)) return null;
+  if(flo*fhi>0){
+    // try scanning for a bracket
+    let found=false;
+    let prevR=lo, prevF=flo;
+    for(let r=-0.9;r<=10;r+=0.05){
+      const fr=f(r);
+      if(prevF*fr<=0){ lo=prevR; hi=r; flo=prevF; fhi=fr; found=true; break; }
+      prevR=r; prevF=fr;
+    }
+    if(!found) return null;
+  }
+  for(let i=0;i<200;i++){
+    const mid=(lo+hi)/2, fmid=f(mid);
+    if(Math.abs(fmid)<0.5) return mid;
+    if(flo*fmid<0){ hi=mid; fhi=fmid; } else { lo=mid; flo=fmid; }
+  }
+  return (lo+hi)/2;
+}
+function paybackSimples(cfs){
+  let acc=cfs[0];
+  if(acc>=0) return 0;
+  for(let t=1;t<cfs.length;t++){
+    const prev=acc;
+    acc+=cfs[t];
+    if(acc>=0){
+      const frac = cfs[t]!==0 ? (-prev)/cfs[t] : 0;
+      return (t-1)+frac;
+    }
+  }
+  return null;
+}
+
+function pontoEquilibrio(scn){
+  const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
+  const custosFixo = {1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{ if(c.tipo==='Fixo') YEARS.forEach(yy=> custosFixo[yy]+=num(c.valores[yy])); });
+  const custosVar = {1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{ if(c.tipo!=='Fixo') YEARS.forEach(yy=> custosVar[yy]+=num(c.valores[yy])); });
+  const receitaLiq = scn.anos[y].receitaLiquida;
+  const cf = custosFixo[y], cv = custosVar[y];
+  if(receitaLiq<=0) return {valor:null, cf, cv, receitaLiq};
+  const margem = 1 - (cv/receitaLiq);
+  if(margem<=0) return {valor:null, cf, cv, receitaLiq};
+  return {valor: cf/margem, cf, cv, receitaLiq, margem};
+}
+
+/* ============================== FOCUS-PRESERVING RENDER ============================== */
+function captureFocus(){
+  const el = document.activeElement;
+  if(!el || !el.dataset || !el.dataset.bind) return null;
+  return {
+    bind: el.dataset.bind,
+    selStart: (typeof el.selectionStart==='number')? el.selectionStart : null,
+    selEnd: (typeof el.selectionEnd==='number')? el.selectionEnd : null
+  };
+}
+function restoreFocus(f){
+  if(!f) return;
+  const el = document.querySelector('[data-bind="'+CSS.escape(f.bind)+'"]');
+  if(el){
+    el.focus();
+    if(f.selStart!=null && el.setSelectionRange){
+      try{ el.setSelectionRange(f.selStart, f.selEnd); }catch(e){}
+    }
+  }
+}
+
+let rafPending=false;
+function requestRender(){
+  if(rafPending) return;
+  rafPending=true;
+  requestAnimationFrame(()=>{ rafPending=false; renderAll(); });
+}
+
+/* ============================== TABS DEFINITION ============================== */
+const TABS = [
+  {id:'dashboard', n:'00', label:'Painel Geral'},
+  {id:'projeto', n:'01', label:'Dados & Premissas'},
+  {id:'invest', n:'02', label:'Investimentos'},
+  {id:'financ', n:'03', label:'Dívidas Ativas'},
+  {id:'custos', n:'04', label:'Custos Operacionais'},
+  {id:'giro', n:'05', label:'Capital de Giro'},
+  {id:'receitas', n:'06', label:'Receitas Projetadas'},
+  {id:'fluxo', n:'07', label:'Fluxo de Caixa'},
+  {id:'indicadores', n:'08', label:'Indicadores & Cenários'}
+];
+
+function renderTabs(){
+  const nav = document.getElementById('tabs');
+  nav.innerHTML = TABS.map(t=>
+    '<button data-tab="'+t.id+'" class="'+(activeTab===t.id?'active':'')+'"><span class="n">'+t.n+'</span>'+t.label+'</button>'
+  ).join('');
+  nav.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ activeTab=b.dataset.tab; renderAll(); });
+  });
+}
+
+/* ============================== FIELD BUILDERS ============================== */
+function fld(labelTxt, bind, value, opts){
+  opts = opts||{};
+  const type = opts.type||'text';
+  const step = opts.step? ' step="'+opts.step+'"':'';
+  const val = value==null? '' : value;
+  return '<label class="field"><span>'+labelTxt+'</span>'+
+    '<input type="'+type+'"'+step+' data-bind="'+bind+'" value="'+String(val).replace(/"/g,'&quot;')+'" '+(opts.readonly?'readonly':'')+'></label>';
+}
+function selectFld(labelTxt, bind, value, options){
+  const opts = options.map(o=>'<option value="'+o.v+'" '+(o.v===value?'selected':'')+'>'+o.l+'</option>').join('');
+  return '<label class="field"><span>'+labelTxt+'</span><select data-bind="'+bind+'">'+opts+'</select></label>';
+}
+
+/* generic bind path setter: "investimentos.INVID.descricao" or "custos.CID.valores.3" or "meta.produtor" */
+function setPath(root, path, value){
+  const parts = path.split('.');
+  let ref = root;
+  for(let i=0;i<parts.length-1;i++){
+    const p = parts[i];
+    if(/^\d+$/.test(p) === false && Array.isArray(ref)){
+      // find by id
+      const found = ref.find(x=>x.id===p);
+      ref = found;
+    } else {
+      ref = ref[p];
+    }
+  }
+  const last = parts[parts.length-1];
+  ref[last] = value;
+}
+function getArrById(section, id){ return state[section].find(x=>x.id===id); }
+
+/* ============================== PANEL: DASHBOARD ============================== */
+function renderDashboard(){
+  const scn = buildScenario();
+  const inv = scn.inv;
+  const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
+  const lucroAno = scn.anos[y].lucroContabil;
+  const rendaBenef = lucroAno/12/Math.max(1,num(state.meta.beneficiarios));
+  const vplPos = scn.vpl!=null && scn.vpl>=0;
+
+  let html = '<div class="panel-head"><div><div class="eyebrow">Resumo executivo</div><h2>Painel Geral</h2></div>'+
+    '<div style="font-size:12px;color:var(--ink-soft)">'+(state.meta.produtor||'')+' · '+(state.meta.atividade||'')+'</div></div>';
+
+  html += '<div class="stamp-wrap"><div class="stamp '+(vplPos?'':'warn')+'">'+
+    (scn.vpl==null?'VPL indisponível': (vplPos?'Projeto viável à TMA':'Atenção: VPL negativo') )+'</div></div>';
+
+  html += '<div class="kpi-grid">'+
+    kpi('VPL (Valor Presente Líquido)', scn.vpl!=null?fmtR$(scn.vpl):'—', scn.vpl!=null && scn.vpl<0, 'à TMA de '+fmtNum(state.premissas.tma,1)+'% a.a.')+
+    kpi('TIR (Taxa Interna de Retorno)', scn.tir!=null?fmtPct(scn.tir,1):'não converge', scn.tir!=null && scn.tir < num(state.premissas.tma)/100, 'comparar com a TMA')+
+    kpi('Payback (recuperação)', scn.payback!=null?fmtNum(scn.payback,2)+' anos':'não recupera em 5 anos', scn.payback==null, 'tempo até saldo positivo')+
+    kpi('Renda mensal / beneficiário (ano '+y+')', fmtR$(rendaBenef), rendaBenef<0, num(state.meta.beneficiarios)+' beneficiário(s)')+
+    '</div>';
+
+  html += '<div class="two-col">';
+
+  // cash flow bars
+  html += '<div><h3 style="font-size:14px;margin-bottom:6px;">Fluxo de Caixa Líquido — Ano 0 a Ano 5</h3>';
+  const vals = scn.cashflows;
+  const maxAbs = Math.max(1,...vals.map(v=>Math.abs(v)));
+  html += '<div class="bars">';
+  vals.forEach((v,i)=>{
+    const h = Math.max(2, Math.round(Math.abs(v)/maxAbs*140));
+    html += '<div class="bar-col">'+
+      (v>=0? '<span class="bv">'+fmtR$(v)+'</span>' : '')+
+      '<div class="bar '+(v<0?'neg':'')+'" style="height:'+h+'px;'+(v<0?'align-self:flex-start;':'')+'"></div>'+
+      (v<0? '<span class="bv">'+fmtR$(v)+'</span>' : '')+
+      '<span class="bl">Ano '+i+'</span></div>';
+  });
+  html += '</div></div>';
+
+  // summary notes
+  html += '<div><h3 style="font-size:14px;margin-bottom:6px;">Como o projeto está montado</h3><ul class="note-list">'+
+    '<li>Patrimônio já existente (sem novo desembolso): <b>'+fmtR$(inv.patrimonioExistente)+'</b></li>'+
+    '<li>Novo investimento com recursos próprios (Ano 0): <b>'+fmtR$(inv.novoProprio)+'</b></li>'+
+    '<li>Novo investimento financiado: <b>'+fmtR$(inv.novoFinanciado)+'</b></li>'+
+    '<li>Capital de giro estimado: <b>'+fmtR$(scn.giroBase)+'</b></li>'+
+    '<li>Depreciação anual total: <b>'+fmtR$(inv.deprecTotal)+'</b> (custo contábil, não sai do caixa)</li>'+
+    '<li>Reposição de bens prevista dentro dos 5 anos: '+repoList(inv.reposicoes)+'</li>'+
+    '</ul></div>';
+
+  html += '</div>';
+
+  html += '<div class="panel-note">Dica: comece pela aba <b>01 · Dados &amp; Premissas</b>, depois lance seus <b>Investimentos</b> marcando o que já é seu (bens já existentes) e o que ainda vai comprar. O restante das abas se conecta automaticamente.</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+function repoList(rep){
+  const parts=[];
+  YEARS.forEach(y=>{ if(rep[y]>0) parts.push('Ano '+y+': '+fmtR$(rep[y])); });
+  return parts.length? parts.join(' · ') : 'nenhuma no horizonte';
+}
+function kpi(lbl,val,neg,sub){
+  return '<div class="kpi"><div class="lbl">'+lbl+'</div><div class="val '+(neg?'neg':'')+'">'+val+'</div><div class="sub">'+(sub||'')+'</div></div>';
+}
+
+/* ============================== PANEL: PROJETO (meta + premissas) ============================== */
+function renderProjeto(){
+  let html = '<div class="panel-head"><div><div class="eyebrow">Identificação</div><h2>Dados do Projeto & Premissas</h2></div></div>';
+
+  html += '<fieldset class="block"><legend>Identificação</legend><div class="grid g2">'+
+    fld('Produtor(a) / Associação', 'meta.produtor', state.meta.produtor)+
+    fld('Localização', 'meta.local', state.meta.local)+
+    fld('Atividade principal', 'meta.atividade', state.meta.atividade)+
+    fld('Nº de beneficiários(as)', 'meta.beneficiarios', state.meta.beneficiarios, {type:'number', step:1})+
+    fld('Data de preenchimento', 'meta.data', state.meta.data, {type:'date'})+
+    '</div></fieldset>';
+
+  html += '<fieldset class="block"><legend>Premissas financeiras</legend><div class="grid g4">'+
+    fld('Impostos/taxas sobre a receita (%)','premissas.impostoReceita', state.premissas.impostoReceita, {type:'number', step:0.1})+
+    fld('Taxa Mínima de Atratividade – TMA (% a.a.)','premissas.tma', state.premissas.tma, {type:'number', step:0.1})+
+    fld('Ano de análise para indicadores (1–5)','premissas.anoAnalise', state.premissas.anoAnalise, {type:'number', step:1})+
+    fld('Meses de custo para Capital de Giro','premissas.mesesGiro', state.premissas.mesesGiro, {type:'number', step:1})+
+    '</div></fieldset>';
+
+  html += '<div class="panel-note">Essas premissas alimentam todos os cálculos automáticos: impostos reduzem a receita líquida; a TMA é usada no VPL/TIR; o "ano de análise" define qual ano aparece nos indicadores e no ponto de equilíbrio.</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== PANEL: INVESTIMENTOS ============================== */
+const ORIGENS = [
+  {v:'novo_proprio', l:'Novo — recursos próprios (sai do caixa no Ano 0)'},
+  {v:'novo_financiado', l:'Novo — financiado (lance as parcelas em Dívidas)'},
+  {v:'existente', l:'Já existente — recursos próprios já realizados'}
+];
+const CATEGORIAS = ['Terrenos','Obras e Instalações','Equipamentos e Máquinas','Veículos','Semoventes (Animais)','Outros'];
+
+function renderInvest(){
+  let html = '<div class="panel-head"><div><div class="eyebrow">Ativos do empreendimento</div><h2>Investimentos</h2></div>'+
+    '<button class="btn ochre small" data-action="add-inv">+ novo item</button></div>';
+
+  html += '<div class="panel-note">Para máquinas e bens <b>já comprados</b>, marque a origem como "Já existente": o valor entra como patrimônio e gera depreciação, mas <u>não</u> é descontado do fluxo de caixa futuro. Informe o valor de mercado atual (não o valor da nota antiga) e os anos de uso, para calcular a vida útil restante.</div>';
+
+  html += '<div class="wrap-table"><table class="data"><thead><tr>'+
+    '<th style="min-width:170px">Descrição</th><th>Categoria</th><th style="min-width:230px">Origem</th>'+
+    '<th>Qtd.</th><th>Valor unit. atual (R$)</th><th>Total (R$)</th>'+
+    '<th>Vida útil total (anos)</th><th>Anos de uso</th><th>Vida útil restante</th><th>Deprec. anual (R$)</th><th></th>'+
+    '</tr></thead><tbody>';
+
+  if(state.investimentos.length===0){
+    html += '<tr><td colspan="11" class="empty-hint">Nenhum item lançado ainda. Clique em "+ novo item".</td></tr>';
+  }
+
+  let totNovoProprio=0, totNovoFin=0, totExist=0, totDeprec=0;
+  state.investimentos.forEach(it=>{
+    const total = itemValorTotal(it);
+    const vr = itemVidaRestante(it);
+    const dep = itemDeprecAnual(it);
+    if(it.origem==='novo_proprio') totNovoProprio+=total;
+    else if(it.origem==='novo_financiado') totNovoFin+=total;
+    else totExist+=total;
+    totDeprec+=dep;
+    const isExist = it.origem==='existente';
+    html += '<tr>'+
+      '<td class="txt"><input type="text" data-bind="investimentos.'+it.id+'.descricao" value="'+esc(it.descricao)+'"></td>'+
+      '<td><select data-bind="investimentos.'+it.id+'.categoria">'+CATEGORIAS.map(c=>'<option '+(c===it.categoria?'selected':'')+'>'+c+'</option>').join('')+'</select></td>'+
+      '<td class="txt"><select data-bind="investimentos.'+it.id+'.origem">'+ORIGENS.map(o=>'<option value="'+o.v+'" '+(o.v===it.origem?'selected':'')+'>'+o.l+'</option>').join('')+'</select></td>'+
+      '<td><input type="number" step="1" data-bind="investimentos.'+it.id+'.quantidade" value="'+it.quantidade+'"></td>'+
+      '<td><input type="number" step="0.01" data-bind="investimentos.'+it.id+'.valorUnit" value="'+it.valorUnit+'"></td>'+
+      '<td class="mono">'+fmtR$(total)+'</td>'+
+      '<td><input type="number" step="1" data-bind="investimentos.'+it.id+'.vidaTotal" value="'+it.vidaTotal+'"></td>'+
+      '<td>'+(isExist? '<input type="number" step="1" data-bind="investimentos.'+it.id+'.anosUso" value="'+it.anosUso+'">' : '<span style="color:var(--ink-faint)">0</span>')+'</td>'+
+      '<td class="mono">'+fmtNum(vr,1)+'</td>'+
+      '<td class="mono">'+fmtR$(dep)+'</td>'+
+      '<td class="row-actions"><button class="icon-btn" data-action="del-inv" data-id="'+it.id+'" title="remover">✕</button></td>'+
+      '</tr>';
+  });
+
+  html += '<tr class="total-row"><td colspan="5">Totais</td><td class="mono">'+fmtR$(totNovoProprio+totNovoFin+totExist)+'</td>'+
+    '<td colspan="3"></td><td class="mono">'+fmtR$(totDeprec)+'</td><td></td></tr>';
+  html += '</tbody></table></div>';
+
+  html += '<div class="grid g4" style="margin-top:16px;">'+
+    kpiMini('Novo — recursos próprios', fmtR$(totNovoProprio))+
+    kpiMini('Novo — financiado', fmtR$(totNovoFin))+
+    kpiMini('Patrimônio já existente', fmtR$(totExist))+
+    kpiMini('Depreciação anual total', fmtR$(totDeprec))+
+    '</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+function kpiMini(l,v){
+  return '<div class="kpi"><div class="lbl">'+l+'</div><div class="val" style="font-size:18px;">'+v+'</div></div>';
+}
+function esc(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
+
+/* ============================== PANEL: FINANCIAMENTOS ============================== */
+function renderFinanc(){
+  let html = '<div class="panel-head"><div><div class="eyebrow">Compromissos financeiros</div><h2>Dívidas Ativas / Financiamentos</h2></div>'+
+    '<button class="btn ochre small" data-action="add-fin">+ nova dívida</button></div>';
+
+  html += '<div class="panel-note">Se algum bem já usado (ou o novo item marcado como "financiado") ainda tem parcelas a pagar — como um financiamento Pronaf — lance aqui os valores anuais. Essas parcelas <b>saem do caixa de verdade</b> e entram no Fluxo de Caixa.</div>';
+
+  html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:220px">Descrição</th><th>Saldo devedor (R$)</th>'+
+    YEARS.map(y=>'<th>Parcela Ano '+y+'</th>').join('')+'<th>Total</th><th></th></tr></thead><tbody>';
+
+  if(state.financiamentos.length===0){
+    html += '<tr><td colspan="9" class="empty-hint">Nenhuma dívida lançada. Se as máquinas foram compradas à vista, esta aba pode ficar vazia.</td></tr>';
+  }
+  let totalPorAno={1:0,2:0,3:0,4:0,5:0};
+  state.financiamentos.forEach(f=>{
+    let totalF=0;
+    YEARS.forEach(y=>{ totalF+=num(f.parcelas[y]); totalPorAno[y]+=num(f.parcelas[y]); });
+    html += '<tr><td class="txt"><input type="text" data-bind="financiamentos.'+f.id+'.descricao" value="'+esc(f.descricao)+'"></td>'+
+      '<td><input type="number" step="0.01" data-bind="financiamentos.'+f.id+'.saldoDevedor" value="'+f.saldoDevedor+'"></td>'+
+      YEARS.map(y=>'<td><input type="number" step="0.01" data-bind="financiamentos.'+f.id+'.parcelas.'+y+'" value="'+(f.parcelas[y]||0)+'"></td>').join('')+
+      '<td class="mono">'+fmtR$(totalF)+'</td>'+
+      '<td class="row-actions"><button class="icon-btn" data-action="del-fin" data-id="'+f.id+'">✕</button></td></tr>';
+  });
+  html += '<tr class="total-row"><td colspan="2">Total por ano</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(totalPorAno[y])+'</td>').join('')+'<td colspan="2"></td></tr>';
+  html += '</tbody></table></div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== PANEL: CUSTOS ============================== */
+function renderCustos(){
+  let html = '<div class="panel-head"><div><div class="eyebrow">Custeio</div><h2>Custos Operacionais</h2></div>'+
+    '<button class="btn ochre small" data-action="add-cst">+ novo custo</button></div>';
+
+  html += '<div class="panel-note">Use o <b>histórico real do último ano</b> do empreendimento sempre que possível, em vez de estimar. Classifique como <b>Fixo</b> (não varia com a produção) ou <b>Variável</b> (varia com a quantidade produzida) — essa classificação é usada no cálculo do Ponto de Equilíbrio.</div>';
+
+  html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:220px">Descrição</th><th>Tipo</th>'+
+    YEARS.map(y=>'<th>Ano '+y+'</th>').join('')+'<th></th></tr></thead><tbody>';
+
+  if(state.custos.length===0){ html += '<tr><td colspan="8" class="empty-hint">Nenhum custo lançado ainda.</td></tr>'; }
+
+  let totalPorAno={1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{
+    YEARS.forEach(y=> totalPorAno[y]+=num(c.valores[y]));
+    html += '<tr><td class="txt"><input type="text" data-bind="custos.'+c.id+'.descricao" value="'+esc(c.descricao)+'"></td>'+
+      '<td><select data-bind="custos.'+c.id+'.tipo"><option '+(c.tipo==='Fixo'?'selected':'')+'>Fixo</option><option '+(c.tipo==='Variável'?'selected':'')+'>Variável</option></select></td>'+
+      YEARS.map(y=>'<td><input type="number" step="0.01" data-bind="custos.'+c.id+'.valores.'+y+'" value="'+(c.valores[y]||0)+'"></td>').join('')+
+      '<td class="row-actions">'+
+        '<button class="icon-btn" data-action="repeat-cst" data-id="'+c.id+'" title="repetir valor do Ano 1 para os demais">↦</button> '+
+        '<button class="icon-btn" data-action="del-cst" data-id="'+c.id+'">✕</button>'+
+      '</td></tr>';
+  });
+  html += '<tr class="total-row"><td colspan="2">Total por ano</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(totalPorAno[y])+'</td>').join('')+'<td></td></tr>';
+  html += '</tbody></table></div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== PANEL: CAPITAL DE GIRO ============================== */
+function renderGiro(){
+  const {total:custoTotal} = calcCustosPorAno();
+  const auto = calcCapitalGiro(custoTotal[1]);
+  let html = '<div class="panel-head"><div><div class="eyebrow">Liquidez inicial</div><h2>Capital de Giro</h2></div></div>';
+
+  html += '<div class="panel-note">Capital de giro é o valor necessário para manter as atividades <b>antes</b> de receber pelas primeiras vendas. Por padrão sugerimos um cálculo automático a partir dos custos operacionais do Ano 1, mas você pode informar um valor manual.</div>';
+
+  html += '<fieldset class="block"><legend>Modo de cálculo</legend><div class="grid g2">'+
+    selectFld('Como calcular', 'capitalGiro.modo', state.capitalGiro.modo, [{v:'auto',l:'Automático (meses de custo × custo mensal)'},{v:'manual',l:'Valor manual'}]);
+  if(state.capitalGiro.modo==='manual'){
+    html += fld('Valor manual do Capital de Giro (R$)', 'capitalGiro.valorManual', state.capitalGiro.valorManual, {type:'number',step:0.01});
+  } else {
+    html += '<label class="field"><span>Estimativa automática</span><input type="text" readonly value="'+fmtR$(auto)+'"></label>';
+  }
+  html += '</div></fieldset>';
+
+  html += '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">'+
+    kpiMini('Custo operacional mensal (Ano 1)', fmtR$(custoTotal[1]/12))+
+    kpiMini('Meses de cobertura', state.premissas.mesesGiro+' meses (ajuste em 01 · Premissas)')+
+    kpiMini('Capital de giro considerado', fmtR$(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):auto))+
+    '</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== PANEL: RECEITAS ============================== */
+function renderReceitas(){
+  let html = '<div class="panel-head"><div><div class="eyebrow">Produção e vendas</div><h2>Receitas Projetadas</h2></div>'+
+    '<button class="btn ochre small" data-action="add-rec">+ novo produto</button></div>';
+
+  html += '<div class="panel-note">Separe o que é <b>vendido</b> (gera caixa) do que é <b>autoconsumo</b> (garante alimentação da família, mas não gera receita monetária) usando o % de autoconsumo. O valor do autoconsumo entra no resultado da família, mas não no fluxo de caixa.</div>';
+
+  state.receitas.forEach(r=>{
+    html += '<fieldset class="block"><legend>'+esc(r.produto||'Produto')+'</legend>';
+    html += '<div class="grid g3" style="margin-bottom:10px;">'+
+      fld('Produto', 'receitas.'+r.id+'.produto', r.produto)+
+      fld('Unidade de comercialização', 'receitas.'+r.id+'.unidade', r.unidade)+
+      fld('% de autoconsumo (não gera caixa)', 'receitas.'+r.id+'.percAutoconsumo', r.percAutoconsumo, {type:'number', step:0.5})+
+      '</div>';
+    html += '<div class="wrap-table"><table class="data"><thead><tr><th></th>'+YEARS.map(y=>'<th>Ano '+y+'</th>').join('')+'</tr></thead><tbody>';
+    html += '<tr><td class="txt">Quantidade</td>'+YEARS.map(y=>'<td><input type="number" step="0.01" data-bind="receitas.'+r.id+'.quantidades.'+y+'" value="'+(r.quantidades[y]||0)+'"></td>').join('')+'</tr>';
+    html += '<tr><td class="txt">Preço unitário (R$)</td>'+YEARS.map(y=>'<td><input type="number" step="0.01" data-bind="receitas.'+r.id+'.precos.'+y+'" value="'+(r.precos[y]||0)+'"></td>').join('')+'</tr>';
+    const totRow = YEARS.map(y=> num(r.quantidades[y])*num(r.precos[y]));
+    html += '<tr class="total-row"><td class="txt">Total (R$)</td>'+totRow.map(v=>'<td class="mono">'+fmtR$(v)+'</td>').join('')+'</tr>';
+    html += '</tbody></table></div>';
+    html += '<div style="text-align:right;margin-top:8px;"><button class="icon-btn" data-action="del-rec" data-id="'+r.id+'" title="remover produto">✕ remover produto</button></div>';
+    html += '</fieldset>';
+  });
+
+  if(state.receitas.length===0){
+    html += '<div class="empty-hint">Nenhum produto lançado. Clique em "+ novo produto".</div>';
+  }
+
+  // summary
+  const {brutaComerc, autoconsumo} = calcReceitasPorAno();
+  html += '<fieldset class="block"><legend>Resumo de receitas</legend><div class="wrap-table"><table class="data"><thead><tr><th></th>'+YEARS.map(y=>'<th>Ano '+y+'</th>').join('')+'</tr></thead><tbody>'+
+    '<tr><td class="txt">Receita bruta de comercialização</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(brutaComerc[y])+'</td>').join('')+'</tr>'+
+    '<tr><td class="txt">Valor do autoconsumo (informativo)</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(autoconsumo[y])+'</td>').join('')+'</tr>'+
+    '</tbody></table></div></fieldset>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== PANEL: FLUXO DE CAIXA ============================== */
+function renderFluxo(){
+  const scn = buildScenario();
+  let html = '<div class="panel-head"><div><div class="eyebrow">Projeção — calculada automaticamente</div><h2>Fluxo de Caixa</h2></div></div>';
+
+  html += '<div class="panel-note">O Ano 0 reflete a fotografia de hoje: só sai caixa para o que é <b>novo, com recursos próprios</b>, mais o capital de giro. Bens já existentes não geram saída de caixa no Ano 0 — apenas depreciação e, se a vida útil acabar dentro do horizonte, uma reposição futura.</div>';
+
+  const rows = [
+    ['Receita bruta de comercialização', y=>scn.anos[y].brutaComerc, 0],
+    ['(–) Impostos e taxas sobre a receita', y=>-scn.anos[y].impostos, 0],
+    ['(=) Receita líquida', y=>scn.anos[y].receitaLiquida, 1],
+    ['(–) Custos operacionais', y=>-scn.anos[y].custos, 0],
+    ['(–) Parcelas de financiamento', y=>-scn.anos[y].financ, 0],
+    ['(–) Reposição de investimentos', y=>-scn.anos[y].reposicao, 0],
+    ['(=) Fluxo de caixa líquido do ano', y=>scn.anos[y].fluxoCaixa, 1]
+  ];
+
+  html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:230px">Ano 0</th><th>Valor</th>'+
+    YEARS.map(y=>'<th>Ano '+y+'</th>').join('')+'</tr></thead><tbody>';
+  html += '<tr><td class="txt">(–) Investimento novo (recursos próprios)</td><td class="mono">'+fmtR$(-scn.inv.novoProprio)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
+  html += '<tr><td class="txt">(–) Capital de giro inicial</td><td class="mono">'+fmtR$(-scn.giroBase)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
+  html += '<tr class="total-row"><td class="txt">(=) Fluxo Ano 0</td><td class="mono">'+fmtR$(scn.fluxo0)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
+  html += '</tbody></table></div>';
+
+  html += '<div class="wrap-table" style="margin-top:14px;"><table class="data"><thead><tr><th style="min-width:230px">Item</th>'+YEARS.map(y=>'<th>Ano '+y+'</th>').join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{
+    html += '<tr'+(r[2]?' class="total-row"':'')+'><td class="txt">'+r[0]+'</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(r[1](y))+'</td>').join('')+'</tr>';
+  });
+  let acc=scn.fluxo0;
+  const accRow = YEARS.map(y=>{ acc+=scn.anos[y].fluxoCaixa; return acc; });
+  html += '<tr class="total-row"><td class="txt">Saldo de caixa acumulado</td>'+accRow.map(v=>'<td class="mono">'+fmtR$(v)+'</td>').join('')+'</tr>';
+  html += '</tbody></table></div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== PANEL: INDICADORES & CENÁRIOS ============================== */
+function renderIndicadores(){
+  const scn = buildScenario();
+  const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
+  const pe = pontoEquilibrio(scn);
+
+  let html = '<div class="panel-head"><div><div class="eyebrow">Viabilidade</div><h2>Indicadores &amp; Cenários</h2></div></div>';
+
+  html += '<div class="kpi-grid">'+
+    kpi('VPL (à TMA de '+fmtNum(state.premissas.tma,1)+'%)', scn.vpl!=null?fmtR$(scn.vpl):'—', scn.vpl<0)+
+    kpi('TIR', scn.tir!=null?fmtPct(scn.tir,1):'não converge', false)+
+    kpi('Payback simples', scn.payback!=null?fmtNum(scn.payback,2)+' anos':'> 5 anos', scn.payback==null)+
+    kpi('Ponto de equilíbrio (Ano '+y+')', pe.valor!=null?fmtR$(pe.valor):'—', pe.valor==null)+
+    '</div>';
+
+  html += '<fieldset class="block"><legend>Ponto de equilíbrio — detalhamento (Ano '+y+')</legend><div class="grid g3">'+
+    kpiMini('Custos fixos', fmtR$(pe.cf))+kpiMini('Custos variáveis', fmtR$(pe.cv))+kpiMini('Receita líquida', fmtR$(pe.receitaLiq))+
+    '</div></fieldset>';
+
+  // Cenarios config
+  html += '<fieldset class="block"><legend>Configurar cenários de sensibilidade</legend><div class="grid g4">'+
+    fld('Otimista — receita +% ', 'cenarios.otimistaReceita', state.cenarios.otimistaReceita, {type:'number', step:1})+
+    fld('Otimista — custo −%', 'cenarios.otimistaCusto', state.cenarios.otimistaCusto, {type:'number', step:1})+
+    fld('Pessimista — receita −%', 'cenarios.pessimistaReceita', state.cenarios.pessimistaReceita, {type:'number', step:1})+
+    fld('Pessimista — custo +%', 'cenarios.pessimistaCusto', state.cenarios.pessimistaCusto, {type:'number', step:1})+
+    '</div></fieldset>';
+
+  const scnOtim = buildScenario({receita: 1+num(state.cenarios.otimistaReceita)/100, custo: 1-num(state.cenarios.otimistaCusto)/100});
+  const scnPess = buildScenario({receita: 1-num(state.cenarios.pessimistaReceita)/100, custo: 1+num(state.cenarios.pessimistaCusto)/100});
+
+  function drow(label, get){
+    return '<tr><td class="txt">'+label+'</td>'+
+      '<td>'+fmtR$(get(scnPess))+'</td>'+
+      '<td>'+fmtR$(get(scn))+'</td>'+
+      '<td>'+fmtR$(get(scnOtim))+'</td></tr>';
+  }
+  const nBenef = Math.max(1,num(state.meta.beneficiarios));
+  html += '<fieldset class="block"><legend>Demonstrativo de resultados por cenário — Ano '+y+'</legend>'+
+    '<div class="wrap-table"><table class="data scen-table"><thead><tr><th class="txt">Medida</th><th class="pess">Pessimista</th><th>Realista</th><th class="otim">Otimista</th></tr></thead><tbody>'+
+    drow('Receita bruta de comercialização', s=>s.anos[y].brutaComerc)+
+    drow('Valor do autoconsumo', s=>s.anos[y].autoconsumo)+
+    drow('Impostos e taxas', s=>-s.anos[y].impostos)+
+    drow('Receita líquida', s=>s.anos[y].receitaLiquida)+
+    drow('Custo total', s=>-s.anos[y].custos)+
+    drow('Lucro líquido', s=>s.anos[y].lucroContabil)+
+    '<tr><td class="txt">Lucratividade (%)</td>'+
+      '<td>'+fmtPct(scnPess.anos[y].lucroContabil/Math.max(1,(scnPess.anos[y].receitaLiquida+scnPess.anos[y].autoconsumo)))+'</td>'+
+      '<td>'+fmtPct(scn.anos[y].lucroContabil/Math.max(1,(scn.anos[y].receitaLiquida+scn.anos[y].autoconsumo)))+'</td>'+
+      '<td>'+fmtPct(scnOtim.anos[y].lucroContabil/Math.max(1,(scnOtim.anos[y].receitaLiquida+scnOtim.anos[y].autoconsumo)))+'</td></tr>'+
+    '<tr><td class="txt">Renda mensal por beneficiário</td>'+
+      '<td>'+fmtR$(scnPess.anos[y].lucroContabil/12/nBenef)+'</td>'+
+      '<td>'+fmtR$(scn.anos[y].lucroContabil/12/nBenef)+'</td>'+
+      '<td>'+fmtR$(scnOtim.anos[y].lucroContabil/12/nBenef)+'</td></tr>'+
+    '<tr class="total-row"><td class="txt">VPL</td><td>'+(scnPess.vpl!=null?fmtR$(scnPess.vpl):'—')+'</td><td>'+(scn.vpl!=null?fmtR$(scn.vpl):'—')+'</td><td>'+(scnOtim.vpl!=null?fmtR$(scnOtim.vpl):'—')+'</td></tr>'+
+    '<tr class="total-row"><td class="txt">TIR</td><td>'+(scnPess.tir!=null?fmtPct(scnPess.tir,1):'—')+'</td><td>'+(scn.tir!=null?fmtPct(scn.tir,1):'—')+'</td><td>'+(scnOtim.tir!=null?fmtPct(scnOtim.tir,1):'—')+'</td></tr>'+
+    '</tbody></table></div></fieldset>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ============================== MAIN RENDER ============================== */
+function renderAll(){
+  const focus = captureFocus();
+  renderTabs();
+  switch(activeTab){
+    case 'dashboard': renderDashboard(); break;
+    case 'projeto': renderProjeto(); break;
+    case 'invest': renderInvest(); break;
+    case 'financ': renderFinanc(); break;
+    case 'custos': renderCustos(); break;
+    case 'giro': renderGiro(); break;
+    case 'receitas': renderReceitas(); break;
+    case 'fluxo': renderFluxo(); break;
+    case 'indicadores': renderIndicadores(); break;
+  }
+  restoreFocus(focus);
+}
+
+/* ============================== EVENT DELEGATION ============================== */
+function handleInput(e){
+  const t = e.target;
+  if(!t.dataset || !t.dataset.bind) return;
+  const bind = t.dataset.bind;
+  let value = t.value;
+  if(t.type==='number') value = value===''? 0 : parseFloat(value);
+  try{ setPath(state, bind, value); }catch(err){ console.error('bind error', bind, err); return; }
+  scheduleSave();
+  requestRender();
+}
+
+function handleClick(e){
+  const btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if(action==='add-inv'){
+    state.investimentos.push({id:uid('inv'),categoria:CATEGORIAS[2],descricao:'',origem:'novo_proprio',quantidade:1,valorUnit:0,vidaTotal:10,anosUso:0});
+  } else if(action==='del-inv'){
+    state.investimentos = state.investimentos.filter(x=>x.id!==id);
+  } else if(action==='add-fin'){
+    state.financiamentos.push({id:uid('fin'),descricao:'',saldoDevedor:0,parcelas:{1:0,2:0,3:0,4:0,5:0}});
+  } else if(action==='del-fin'){
+    state.financiamentos = state.financiamentos.filter(x=>x.id!==id);
+  } else if(action==='add-cst'){
+    state.custos.push({id:uid('cst'),descricao:'',tipo:'Variável',valores:{1:0,2:0,3:0,4:0,5:0}});
+  } else if(action==='del-cst'){
+    state.custos = state.custos.filter(x=>x.id!==id);
+  } else if(action==='repeat-cst'){
+    const c = getArrById('custos', id);
+    if(c){ const v1=num(c.valores[1]); YEARS.forEach(y=> c.valores[y]=v1); }
+  } else if(action==='add-rec'){
+    state.receitas.push({id:uid('rec'),produto:'Novo produto',unidade:'Und.',percAutoconsumo:0,quantidades:{1:0,2:0,3:0,4:0,5:0},precos:{1:0,2:0,3:0,4:0,5:0}});
+  } else if(action==='del-rec'){
+    state.receitas = state.receitas.filter(x=>x.id!==id);
+  } else { return; }
+  scheduleSave();
+  renderAll();
+}
+
+function handleChange(e){
+  const t = e.target;
+  if(t.tagName==='SELECT' && t.dataset.bind){
+    handleInput(e);
+    renderAll(); // selects can change layout (e.g., origem novo/existente, giro modo)
+  }
+}
+
+/* ---------- Modal de confirmação próprio (substitui window.confirm) ---------- */
+function showConfirm(message, onConfirm){
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML =
+    '<div class="confirm-box"><p>'+message+'</p>'+
+    '<div class="confirm-actions">'+
+      '<button class="btn" data-role="cancel">Cancelar</button>'+
+      '<button class="btn danger" data-role="ok">Confirmar</button>'+
+    '</div></div>';
+  document.body.appendChild(overlay);
+  function close(){ overlay.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e){ if(e.key==='Escape') close(); }
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('[data-role="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-role="ok"]').addEventListener('click', ()=>{ close(); onConfirm(); });
+  overlay.querySelector('[data-role="ok"]').focus();
+}
+
+function showToast(msg){
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=> t.classList.add('show'));
+  setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=> t.remove(), 250); }, 2200);
+}
+
+/* top bar actions */
+function wireTopBar(){
+  document.getElementById('btnSample').addEventListener('click', ()=>{
+    showConfirm('Isso vai substituir os dados atuais pelo exemplo de demonstração. Continuar?', ()=>{
+      state = defaultState();
+      scheduleSave();
+      renderAll();
+      showToast('Exemplo de demonstração carregado.');
+    });
+  });
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    showConfirm('Isso vai apagar todos os dados preenchidos. Deseja continuar?', ()=>{
+      state = defaultState();
+      state.investimentos=[]; state.financiamentos=[]; state.custos=[]; state.receitas=[];
+      state.meta = {produtor:'',local:'',atividade:'',beneficiarios:1,data:new Date().toISOString().slice(0,10)};
+      scheduleSave();
+      renderAll();
+      showToast('Todos os dados foram apagados.');
+    });
+  });
+}
+
+/* ============================== INIT ============================== */
+async function init(){
+  wireTopBar();
+  document.getElementById('content').addEventListener('input', handleInput);
+  document.getElementById('content').addEventListener('change', handleChange);
+  document.getElementById('content').addEventListener('click', handleClick);
+  await loadState();
+  renderAll();
+}
+init();
+
+})();
+</script>
+</body>
+</html>
