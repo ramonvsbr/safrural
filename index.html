@@ -610,20 +610,29 @@ function pontoEquilibrio(scn){
 function captureFocus(){
   const el = document.activeElement;
   if(!el || !el.dataset || !el.dataset.bind) return null;
-  return {
-    bind: el.dataset.bind,
-    selStart: (typeof el.selectionStart==='number')? el.selectionStart : null,
-    selEnd: (typeof el.selectionEnd==='number')? el.selectionEnd : null
-  };
+  // Inputs do tipo "number" não suportam a API de seleção (selectionStart/End
+  // lança exceção nesses campos). Sem esse guard, a captura falhava
+  // silenciosamente e o cursor voltava para o início a cada tecla digitada.
+  let selStart = null, selEnd = null;
+  if(el.type!=='number' && el.type!=='date'){
+    try{
+      if(typeof el.selectionStart==='number') selStart = el.selectionStart;
+      if(typeof el.selectionEnd==='number') selEnd = el.selectionEnd;
+    }catch(e){ /* tipo não suporta seleção */ }
+  }
+  return { bind: el.dataset.bind, type: el.type, selStart, selEnd };
 }
 function restoreFocus(f){
   if(!f) return;
   const el = document.querySelector('[data-bind="'+CSS.escape(f.bind)+'"]');
-  if(el){
-    el.focus();
-    if(f.selStart!=null && el.setSelectionRange){
-      try{ el.setSelectionRange(f.selStart, f.selEnd); }catch(e){}
-    }
+  if(!el) return;
+  el.focus();
+  if(f.selStart!=null && f.selEnd!=null && el.setSelectionRange){
+    try{ el.setSelectionRange(f.selStart, f.selEnd); }catch(e){}
+  } else if(el.type==='number'){
+    // Campos number não aceitam setSelectionRange. Reatribuir o valor
+    // move o cursor para o final, que é o comportamento esperado ao digitar.
+    try{ const v = el.value; el.value=''; el.value=v; }catch(e){}
   }
 }
 
