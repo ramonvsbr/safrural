@@ -158,6 +158,41 @@
   /* dashboard */
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
   @media (max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+
+  /* ---------- help / como usar ---------- */
+  .help-steps{list-style:none;margin:0;padding:0;counter-reset:helpstep;}
+  .help-steps li{
+    position:relative;padding:4px 0 16px 40px;border-left:2px solid var(--line-soft);margin-left:14px;
+  }
+  .help-steps li:last-child{border-left:2px solid transparent;padding-bottom:0;}
+  .help-steps li::before{
+    counter-increment:helpstep;content:counter(helpstep);
+    position:absolute;left:-15px;top:0;width:28px;height:28px;border-radius:50%;
+    background:var(--green);color:#fff;font-family:'Zilla Slab',serif;font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px var(--card-2);
+  }
+  .help-steps li h4{font-size:14.5px;margin-bottom:4px;color:var(--green-dark);}
+  .help-steps li p{margin:0;font-size:12.8px;color:var(--ink-soft);line-height:1.6;}
+  .help-steps li p + p{margin-top:6px;}
+
+  .gloss-item{border:1px solid var(--line-soft);border-radius:var(--radius);background:var(--card);margin-bottom:12px;overflow:hidden;}
+  .gloss-item .gloss-head{
+    display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;
+    background:var(--paper-2);padding:8px 14px;border-bottom:1px solid var(--line-soft);
+  }
+  .gloss-item .gloss-head .name{font-family:'Zilla Slab',serif;font-weight:700;font-size:14.5px;color:var(--ink);}
+  .gloss-item .gloss-head .sigla{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ochre-dark);letter-spacing:.06em;}
+  .gloss-item .gloss-body{padding:10px 14px 12px;font-size:12.7px;color:var(--ink-soft);line-height:1.62;}
+  .gloss-item .gloss-body b{color:var(--ink);}
+  .gloss-item .gloss-body .tag{
+    display:inline-block;margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:10.8px;
+    background:var(--card-2);border:1px solid var(--line-soft);border-radius:2px;padding:2px 7px;color:var(--green-dark);
+  }
+  .help-callout{
+    background:var(--card);border-left:3px solid var(--ochre);padding:10px 14px;font-size:12.6px;
+    color:var(--ink-soft);line-height:1.6;margin:14px 0;border-radius:0 2px 2px 0;
+  }
+  .help-callout b{color:var(--ink);}
   .kpi{border:1px solid var(--line-soft);background:var(--card);padding:14px 14px 12px;position:relative;}
   .kpi .lbl{font-size:10.6px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
   .kpi .val{font-family:'Zilla Slab',serif;font-size:24px;font-weight:700;margin-top:5px;color:var(--green-dark);}
@@ -652,6 +687,7 @@ function requestRender(){
 
 /* ============================== TABS DEFINITION ============================== */
 const TABS = [
+  {id:'ajuda', n:'?', label:'Como Usar'},
   {id:'dashboard', n:'00', label:'Painel Geral'},
   {id:'projeto', n:'01', label:'Dados & Premissas'},
   {id:'invest', n:'02', label:'Investimentos'},
@@ -705,6 +741,130 @@ function setPath(root, path, value){
   ref[last] = value;
 }
 function getArrById(section, id){ return state[section].find(x=>x.id===id); }
+
+/* ============================== PANEL: COMO USAR / AJUDA ============================== */
+function renderAjuda(){
+  let html = '<div class="panel-head"><div><div class="eyebrow">Guia rápido</div><h2>Como Usar o SAF-PP</h2></div></div>';
+
+  html += '<div class="panel-note">Este guia explica, passo a passo, como preencher o sistema e como interpretar os resultados. '+
+    'Não é preciso preencher tudo de uma vez: os dados ficam salvos automaticamente e você pode voltar e completar depois.</div>';
+
+  /* ---- PASSO A PASSO ---- */
+  html += '<fieldset class="block"><legend>Passo a passo de preenchimento</legend><ol class="help-steps">';
+
+  html += '<li><h4>01 · Dados &amp; Premissas</h4>'+
+    '<p>Comece identificando o produtor, o local e a atividade produtiva (ex.: apicultura, caprinocultura, fruticultura). '+
+    'Informe também o número de beneficiários da renda e as premissas gerais do projeto, como a Taxa Mínima de Atratividade (TMA), '+
+    'o ano que será usado como referência para a análise e os meses de cobertura do capital de giro.</p>'+
+    '<p>Essas informações servem de base para todos os cálculos das demais abas — por isso é o primeiro passo.</p></li>';
+
+  html += '<li><h4>02 · Investimentos</h4>'+
+    '<p>Liste tudo o que precisa ser comprado ou construído para viabilizar o projeto (equipamentos, benfeitorias, animais, mudas, etc.), '+
+    'com a quantidade, o valor unitário e a origem do recurso (próprio ou financiado). O sistema soma automaticamente o investimento total '+
+    'e separa quanto sai do bolso do produtor e quanto vem de financiamento.</p></li>';
+
+  html += '<li><h4>03 · Dívidas Ativas (Financiamentos)</h4>'+
+    '<p>Se parte do investimento vier de crédito rural ou outro financiamento, cadastre aqui as condições: valor financiado, taxa de juros, '+
+    'carência e prazo. O sistema calcula as parcelas anuais que entrarão como saída de caixa no fluxo de caixa do projeto.</p></li>';
+
+  html += '<li><h4>04 · Custos Operacionais</h4>'+
+    '<p>Registre os custos de manter a atividade funcionando ano a ano: insumos, mão de obra, manutenção, energia, transporte, etc. '+
+    'Classifique cada item como custo fixo (não muda com a produção) ou variável (muda conforme a quantidade produzida) — '+
+    'essa classificação é usada depois para calcular o Ponto de Equilíbrio.</p></li>';
+
+  html += '<li><h4>05 · Capital de Giro</h4>'+
+    '<p>O capital de giro é o dinheiro necessário para pagar as contas do dia a dia antes que as vendas comecem a entrar. '+
+    'O sistema sugere um valor automático (com base no custo mensal e nos meses de cobertura definidos nas premissas), '+
+    'mas você também pode informar um valor manual, se preferir.</p></li>';
+
+  html += '<li><h4>06 · Receitas Projetadas</h4>'+
+    '<p>Cadastre cada produto ou serviço que será vendido, com a quantidade esperada e o preço unitário em cada um dos 5 anos de análise. '+
+    'Se parte da produção for para consumo da própria família (autoconsumo), informe o percentual — esse valor não entra como receita de venda, '+
+    'mas é mostrado separadamente como um ganho informativo (economia que a família deixa de gastar no mercado).</p></li>';
+
+  html += '<li><h4>07 · Fluxo de Caixa</h4>'+
+    '<p>Esta aba é calculada automaticamente a partir de tudo o que foi preenchido nas abas anteriores. Ela mostra, ano a ano, '+
+    'quanto entra (receitas), quanto sai (impostos, custos, parcelas de financiamento, reposição de investimentos) e qual o saldo final — '+
+    'o chamado fluxo de caixa líquido. É a "espinha dorsal" que alimenta os indicadores de viabilidade.</p></li>';
+
+  html += '<li><h4>08 · Indicadores &amp; Cenários</h4>'+
+    '<p>Aqui você vê se o projeto vale a pena: VPL, TIR, Payback, Ponto de Equilíbrio, lucratividade e renda mensal por beneficiário. '+
+    'Também é possível simular um cenário otimista (mais receita, menos custo) e um pessimista (menos receita, mais custo), '+
+    'para entender os riscos do projeto. Veja a explicação de cada indicador no glossário abaixo.</p></li>';
+
+  html += '<li><h4>Exportar e salvar</h4>'+
+    '<p>A qualquer momento, use o botão de exportação no topo da página para gerar um PDF completo com todos os dados e resultados — '+
+    'útil para levar a um técnico, banco ou linha de crédito. O botão de exemplo carrega dados fictícios de demonstração, '+
+    'e o botão de reset apaga tudo para começar do zero.</p></li>';
+
+  html += '</ol></fieldset>';
+
+  html += '<div class="help-callout"><b>Dica:</b> preencha as abas na ordem sugerida (01 a 08). Como cada etapa usa os dados da anterior, '+
+    'preencher fora de ordem pode fazer os indicadores aparecerem zerados ou incompletos até que tudo esteja lançado.</div>';
+
+  /* ---- GLOSSÁRIO DE INDICADORES ---- */
+  html += '<fieldset class="block"><legend>O que significam os valores e índices dos resultados</legend>';
+
+  html += glossItem('Valor Presente Líquido', 'VPL',
+    'Traz todo o dinheiro que o projeto vai gerar (ou consumir) no futuro para o valor de hoje, descontando a Taxa Mínima de Atratividade (TMA) — '+
+    'ou seja, considera que "um real hoje vale mais do que um real daqui a 5 anos".',
+    '<b>Como ler:</b> VPL positivo significa que o projeto gera mais riqueza do que aplicar o mesmo dinheiro à TMA — o projeto é economicamente vantajoso. '+
+    'VPL negativo indica que o projeto, nas condições simuladas, não cobre o custo de oportunidade do capital investido.',
+    'Quanto maior o VPL, melhor');
+
+  html += glossItem('Taxa Interna de Retorno', 'TIR',
+    'É a taxa de retorno anual que o próprio projeto proporciona — a "rentabilidade" do investimento, expressa em porcentagem ao ano.',
+    '<b>Como ler:</b> compare a TIR com a TMA. Se a TIR for maior que a TMA, o projeto rende mais do que outras alternativas de aplicação do dinheiro e vale a pena investir. '+
+    'Se for menor (ou não convergir), o projeto não é atrativo financeiramente nas condições atuais.',
+    'Quanto maior a TIR, melhor');
+
+  html += glossItem('Payback Simples', 'Período de retorno',
+    'Indica quanto tempo (em anos) leva para o produtor recuperar todo o dinheiro investido no projeto, somando os fluxos de caixa acumulados.',
+    '<b>Como ler:</b> quanto menor o payback, mais rápido o investimento "se paga" e menor o risco de o produtor ficar exposto por muito tempo. '+
+    'Projetos com payback maior que o horizonte de análise (5 anos) ainda não recuperaram o investimento dentro do período estudado.',
+    'Quanto menor, melhor');
+
+  html += glossItem('Ponto de Equilíbrio', 'Break-even',
+    'Mostra o valor de receita mínimo necessário no ano para cobrir exatamente os custos fixos e variáveis, sem lucro nem prejuízo.',
+    '<b>Como ler:</b> se a receita projetada ficar acima do ponto de equilíbrio, o projeto está gerando lucro naquele ano; '+
+    'se ficar abaixo, o projeto está operando no prejuízo. É um alerta importante para saber a "margem de segurança" da atividade.',
+    'Quanto menor em relação à receita, melhor');
+
+  html += glossItem('Lucratividade', '% sobre a receita',
+    'É o percentual do lucro líquido em relação à receita total (receita líquida + autoconsumo) do ano analisado.',
+    '<b>Como ler:</b> mostra, de cada R$ 100,00 vendidos (ou produzidos para consumo), quanto sobra de lucro depois de pagar impostos, custos, '+
+    'financiamento e reposição de investimentos. Ajuda a comparar a eficiência do projeto independentemente do seu tamanho.',
+    'Quanto maior, melhor');
+
+  html += glossItem('Renda Mensal por Beneficiário', 'R$ / mês / pessoa',
+    'Divide o lucro líquido anual por 12 meses e pelo número de pessoas beneficiadas pela atividade (informado na aba Dados &amp; Premissas).',
+    '<b>Como ler:</b> é o indicador mais próximo do dia a dia da família — mostra, na prática, quanto o projeto pode contribuir de renda mensal por pessoa. '+
+    'É útil para comparar o resultado do projeto com o custo de vida ou com outras fontes de renda.',
+    'Quanto maior, melhor');
+
+  html += glossItem('Cenários (Otimista / Realista / Pessimista)', 'Análise de sensibilidade',
+    'Recalcula todos os indicadores aplicando variações percentuais de aumento ou redução na receita e no custo, para simular momentos '+
+    'de mercado favoráveis (otimista) ou desfavoráveis (pessimista).',
+    '<b>Como ler:</b> se mesmo no cenário pessimista o VPL continuar positivo e a TIR continuar acima da TMA, o projeto tem uma margem de segurança maior '+
+    'diante de imprevistos como quebra de safra, queda de preços ou aumento de insumos.',
+    'Quanto mais estável entre os cenários, mais seguro');
+
+  html += '</fieldset>';
+
+  html += '<div class="help-callout"><b>Importante:</b> estes indicadores são ferramentas de apoio à decisão, construídas a partir dos dados que você informou. '+
+    'A qualidade da análise depende diretamente da qualidade das informações lançadas em cada aba. Em caso de dúvida sobre os números, '+
+    'procure a assistência técnica rural ou o agente de crédito responsável pelo projeto.</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+function glossItem(nome, sigla, oQueE, comoLer, tag){
+  return '<div class="gloss-item">'+
+    '<div class="gloss-head"><span class="name">'+nome+'</span><span class="sigla">'+sigla+'</span></div>'+
+    '<div class="gloss-body"><p style="margin:0 0 8px;"><b>O que é:</b> '+oQueE+'</p>'+
+    '<p style="margin:0;">'+comoLer+'</p>'+
+    '<span class="tag">'+tag+'</span></div>'+
+    '</div>';
+}
 
 /* ============================== PANEL: DASHBOARD ============================== */
 function renderDashboard(){
@@ -1084,6 +1244,7 @@ function renderAll(){
   const focus = captureFocus();
   renderTabs();
   switch(activeTab){
+    case 'ajuda': renderAjuda(); break;
     case 'dashboard': renderDashboard(); break;
     case 'projeto': renderProjeto(); break;
     case 'invest': renderInvest(); break;
