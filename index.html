@@ -11,31 +11,29 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
-    --paper: #E7DCBE;
-    --paper-2: #DECBA0;
-    --card: #F7F1DE;
-    --card-2: #FBF7EC;
-    --ink: #2A2016;
-    --ink-soft: #5B4C38;
-    --ink-faint: #8C7A5E;
-    --line: #B9A06B;
-    --line-soft: #CDBB8C;
-    --green: #3F5A32;
-    --green-dark: #2C4021;
-    --green-soft: #6C8859;
-    --ochre: #B4791E;
-    --ochre-dark: #8F5F14;
-    --brick: #8A3A2B;
-    --brick-soft: #C0715F;
-    --shadow: rgba(35, 26, 14, 0.22);
+    --paper: #F4F1E8;
+    --paper-2: #E9E3D2;
+    --card: #FFFFFF;
+    --card-2: #FBFAF6;
+    --ink: #23201A;
+    --ink-soft: #5C5648;
+    --ink-faint: #928C7A;
+    --line: #C9C2AC;
+    --line-soft: #DED8C4;
+    --green: #2F6B4C;
+    --green-dark: #1F4A34;
+    --green-soft: #6FA98A;
+    --ochre: #C1791E;
+    --ochre-dark: #965E13;
+    --brick: #A63B2C;
+    --brick-soft: #D08876;
+    --shadow: rgba(30, 26, 18, 0.16);
     --radius: 3px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:
-      repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(185,160,107,0.16) 28px),
-      var(--paper);
+    background: var(--paper);
     color:var(--ink);
     font-family:'IBM Plex Sans', sans-serif;
     font-size:14px;
@@ -210,6 +208,42 @@
   .stamp.warn::before{border-color:var(--brick-soft);}
   .stamp-wrap{display:flex;justify-content:flex-end;margin:6px 0 20px;}
 
+  /* ---------- semáforo de viabilidade ---------- */
+  .semaforo{
+    display:flex;align-items:center;gap:16px;border:1px solid var(--line-soft);background:var(--card);
+    padding:14px 18px;border-radius:var(--radius);margin:6px 0 22px;
+  }
+  .semaforo .luzes{display:flex;gap:7px;flex-shrink:0;background:var(--ink);padding:8px;border-radius:20px;}
+  .semaforo .luz{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.12);}
+  .semaforo .luz.on-vermelho{background:var(--brick);box-shadow:0 0 9px rgba(138,58,43,.85);}
+  .semaforo .luz.on-amarelo{background:var(--ochre);box-shadow:0 0 9px rgba(180,121,30,.85);}
+  .semaforo .luz.on-verde{background:var(--green-soft);box-shadow:0 0 9px rgba(108,136,89,.85);}
+  .semaforo .luz.on-cinza{background:var(--ink-faint);}
+  .semaforo .txt h4{margin:0 0 4px;font-size:15.5px;}
+  .semaforo .txt p{margin:0;font-size:12.4px;color:var(--ink-soft);line-height:1.55;}
+  .semaforo.cor-verde{border-color:var(--green-soft);}
+  .semaforo.cor-verde .txt h4{color:var(--green-dark);}
+  .semaforo.cor-amarelo{border-color:var(--ochre);}
+  .semaforo.cor-amarelo .txt h4{color:var(--ochre-dark);}
+  .semaforo.cor-vermelho{border-color:var(--brick-soft);}
+  .semaforo.cor-vermelho .txt h4{color:var(--brick);}
+  .semaforo.cor-cinza .txt h4{color:var(--ink-soft);}
+
+  /* ---------- seletor tipo de projeto ---------- */
+  .tipo-projeto-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:760px){.tipo-projeto-grid{grid-template-columns:1fr;}}
+  .tipo-card{
+    text-align:left;border:2px solid var(--line-soft);background:var(--card-2);border-radius:var(--radius);
+    padding:12px 14px;cursor:pointer;transition:border-color .15s;
+  }
+  .tipo-card:hover{border-color:var(--ochre);}
+  .tipo-card.active{border-color:var(--green);background:rgba(63,90,50,0.07);}
+  .tipo-card .tc-title{font-family:'Zilla Slab',serif;font-weight:700;font-size:14.5px;color:var(--ink);display:flex;align-items:center;gap:8px;}
+  .tipo-card.active .tc-title{color:var(--green-dark);}
+  .tipo-card .tc-title .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;}
+  .tipo-card.active .tc-title .dot{background:var(--green);border-color:var(--green-dark);}
+  .tipo-card .tc-desc{font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.5;}
+
   .bars{display:flex;align-items:flex-end;gap:10px;height:170px;border-bottom:2px solid var(--ink);padding:0 4px 0 0;margin:14px 0 4px;}
   .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;}
   .bar{width:100%;max-width:46px;background:var(--green-soft);position:relative;border-radius:2px 2px 0 0;}
@@ -325,9 +359,8 @@
 
   <div class="masthead">
     <div>
-      <div class="brand-eyebrow">Caderno de Campo Digital — adaptado do SAF-PP (Meloni, 2017)</div>
       <h1>Análise Financeira do Empreendimento Rural</h1>
-      <div class="sub">Preencha, edite e acompanhe a viabilidade do seu projeto.</div>
+      <div class="sub">Caderno de Campo Digital — adaptado do SAF-PP (Meloni, 2017).</div>
     </div>
     <div class="masthead-right">
       <div class="save-state"><span class="save-dot" id="saveDot"></span><span id="saveLabel">dados salvos neste dispositivo</span></div>
@@ -365,7 +398,8 @@ function defaultState(){
       local:"Sertão de Pernambuco",
       atividade:"Ovinocultura (Ovinos)",
       beneficiarios:1,
-      data: new Date().toISOString().slice(0,10)
+      data: new Date().toISOString().slice(0,10),
+      tipoProjeto:"zero"
     },
     premissas:{
       impostoReceita:3,
@@ -560,7 +594,11 @@ function buildScenario(mult){
   const {brutaComerc, autoconsumo} = calcReceitasPorAno(mult);
   const financ = calcFinanciamentosPorAno();
   const inv = calcInvestimentos();
-  const giroBase = calcCapitalGiro(custoTotal[1]);
+  const andamento = isAndamento();
+  // Projeto "em andamento": não há novo aporte de investimento nem exigência
+  // de capital de giro no Ano 0 — considera-se que a estrutura já está de pé.
+  const giroBase = andamento ? 0 : calcCapitalGiro(custoTotal[1]);
+  const novoProprioAno0 = andamento ? 0 : inv.novoProprio;
 
   const impostoTx = clamp(num(state.premissas.impostoReceita)/100,0,1);
 
@@ -579,7 +617,7 @@ function buildScenario(mult){
     };
   });
 
-  const fluxo0 = -(inv.novoProprio) - giroBase;
+  const fluxo0 = -(novoProprioAno0) - giroBase;
   const cashflows = [fluxo0, anos[1].fluxoCaixa, anos[2].fluxoCaixa, anos[3].fluxoCaixa, anos[4].fluxoCaixa, anos[5].fluxoCaixa];
 
   const tma = num(state.premissas.tma)/100;
@@ -587,7 +625,7 @@ function buildScenario(mult){
   const tir = irr(cashflows);
   const payback = paybackSimples(cashflows);
 
-  return {anos, fluxo0, cashflows, vpl, tir, payback, inv, giroBase, custoTotal};
+  return {anos, fluxo0, cashflows, vpl, tir, payback, inv, giroBase, novoProprioAno0, custoTotal, andamento};
 }
 
 function npv(cfs, rate){
@@ -600,13 +638,13 @@ function irr(cfs){
 
   // bisection search for sign change of NPV(rate)
   function f(r){ return npv(cfs,r); }
-  let lo=-0.95, hi=10, flo=f(lo), fhi=f(hi);
+  let lo=-0.95, hi=60, flo=f(lo), fhi=f(hi);
   if(!isFinite(flo)||!isFinite(fhi)) return null;
   if(flo*fhi>0){
-    // try scanning for a bracket
+    // try scanning for a bracket (faixas maiores no início, mais largas depois)
     let found=false;
     let prevR=lo, prevF=flo;
-    for(let r=-0.9;r<=10;r+=0.05){
+    for(let r=-0.9;r<=60;r+=(r<5?0.05:0.5)){
       const fr=f(r);
       if(prevF*fr<=0){ lo=prevR; hi=r; flo=prevF; fhi=fr; found=true; break; }
       prevR=r; prevF=fr;
@@ -646,6 +684,96 @@ function pontoEquilibrio(scn){
   const margem = 1 - (cv/receitaLiq);
   if(margem<=0) return {valor:null, cf, cv, receitaLiq};
   return {valor: cf/margem, cf, cv, receitaLiq, margem};
+}
+
+/* ============================== LINGUAGEM ACESSÍVEL ============================== */
+// Termos amigáveis para substituir jargões financeiros no sistema e nos relatórios.
+// O termo técnico (sigla) é sempre mantido entre parênteses, para quem já o conhece.
+const LABELS = {
+  tmaCurto: 'Rendimento mínimo desejado',
+  tmaCompleto: 'Rendimento mínimo desejado (ex.: a taxa que o banco pagaria) — TMA',
+  vplCurto: 'Lucro real acumulado no período',
+  vplCompleto: 'Lucro real acumulado no período (VPL)',
+  tirCurto: 'Rentabilidade anual do negócio',
+  tirCompleto: 'Rentabilidade anual do negócio (TIR)',
+  paybackCurto: 'Tempo para recuperar o dinheiro investido',
+  paybackCompleto: 'Tempo para recuperar o dinheiro investido (Payback)'
+};
+
+function isAndamento(){ return !!(state.meta && state.meta.tipoProjeto === 'andamento'); }
+
+/* Mensagens amigáveis nos casos em que os índices não convergem matematicamente,
+   em vez de mostrar termos técnicos como "não converge" ou "NaN". */
+function explainVPL(scn){
+  if(scn.vpl!=null && isFinite(scn.vpl)) return fmtR$(scn.vpl);
+  return 'Não foi possível calcular — confira os valores lançados';
+}
+function explainTIR(scn){
+  if(scn.tir!=null && isFinite(scn.tir)) return fmtPct(scn.tir,1);
+  if(scn.fluxo0>=0){
+    return 'Não se aplica — o projeto não exige aporte inicial para gerar lucro';
+  }
+  if(scn.cashflows.slice(1).every(v=>v<=0)){
+    return 'Não se aplica — o projeto não gera retorno de caixa nos anos simulados';
+  }
+  if(scn.vpl!=null && scn.vpl>0 && scn.payback!=null && scn.payback<0.5){
+    return 'Extremamente alta — o investimento se paga em poucos meses, acima da nossa escala de cálculo';
+  }
+  return 'Não foi possível calcular — confira os valores lançados';
+}
+function explainPayback(scn){
+  if(scn.payback!=null && isFinite(scn.payback)) return fmtNum(scn.payback,2)+' anos';
+  if(scn.fluxo0>=0){
+    return 'Imediato — não há investimento inicial a recuperar';
+  }
+  return 'Não recupera o investimento dentro de 5 anos';
+}
+
+/* ---------- Semáforo de viabilidade ---------- */
+function calcSemaforo(scn){
+  const tma = num(state.premissas.tma)/100;
+  if(scn.vpl==null || !isFinite(scn.vpl)){
+    return {cor:'cinza', titulo:'Sem dados suficientes',
+      msg:'Lance os investimentos, custos e receitas do projeto para calcular a viabilidade.'};
+  }
+  if(scn.vpl < 0){
+    return {cor:'vermelho', titulo:'Inviável nas condições atuais',
+      msg:'O projeto não cobre o '+LABELS.tmaCurto.toLowerCase()+'. Reveja preços, custos ou o valor do investimento antes de seguir em frente.'};
+  }
+  // VPL positivo — checa a rentabilidade anual (TIR), quando existir
+  if(scn.tir!=null && isFinite(scn.tir)){
+    if(scn.tir < tma){
+      return {cor:'vermelho', titulo:'Inviável nas condições atuais',
+        msg:'A '+LABELS.tirCurto.toLowerCase()+' ficou abaixo do rendimento mínimo desejado.'};
+    }
+    const folgaPP = (scn.tir - tma) * 100;
+    const paybackApertado = scn.payback!=null && scn.payback > 4;
+    if(folgaPP < 3 || paybackApertado){
+      return {cor:'amarelo', titulo:'Viável, mas com margem apertada',
+        msg:'O projeto compensa, porém com folga pequena. Quedas de preço ou aumento de custos podem inviabilizá-lo — vale ter um plano de contingência.'};
+    }
+    return {cor:'verde', titulo:'Projeto viável',
+      msg:'O projeto supera o rendimento mínimo desejado com boa margem de segurança.'};
+  }
+  // TIR não definida (ex.: sem aporte inicial a recuperar, ou retorno tão rápido
+  // que ultrapassa a escala numérica de busca da TIR)
+  if(scn.fluxo0>=0){
+    return {cor:'verde', titulo:'Projeto viável',
+      msg:'O projeto não exige aporte inicial relevante e já apresenta lucro nos anos simulados.'};
+  }
+  if(scn.payback!=null && scn.payback<0.5){
+    return {cor:'verde', titulo:'Projeto viável',
+      msg:'O investimento se paga em poucos meses e a rentabilidade anual é tão alta que ultrapassa nossa escala de cálculo — sinal de retorno muito favorável.'};
+  }
+  return {cor:'amarelo', titulo:'Atenção',
+    msg:'Não foi possível calcular a rentabilidade anual com precisão. Revise os valores lançados nas abas anteriores.'};
+}
+function renderSemaforo(scn){
+  const s = calcSemaforo(scn);
+  const ordem = ['vermelho','amarelo','verde'];
+  const luzes = ordem.map(c=>'<span class="luz '+(c===s.cor?'on-'+c:'')+'"></span>').join('');
+  return '<div class="semaforo cor-'+s.cor+'"><div class="luzes">'+luzes+'</div>'+
+    '<div class="txt"><h4>'+s.titulo+'</h4><p>'+s.msg+'</p></div></div>';
 }
 
 /* ============================== FOCUS-PRESERVING RENDER ============================== */
@@ -744,17 +872,29 @@ function getArrById(section, id){ return state[section].find(x=>x.id===id); }
 
 /* ============================== PANEL: COMO USAR / AJUDA ============================== */
 function renderAjuda(){
-  let html = '<div class="panel-head"><div><div class="eyebrow">Guia rápido</div><h2>Como Usar o SAF-PP</h2></div></div>';
+  let html = '<div class="panel-head"><div><h2>Como Usar o SAF-PP</h2></div></div>';
 
   html += '<div class="panel-note">Este guia explica, passo a passo, como preencher o sistema e como interpretar os resultados. '+
     'Não é preciso preencher tudo de uma vez: os dados ficam salvos automaticamente e você pode voltar e completar depois.</div>';
+
+  /* ---- TIPO DE PROJETO ---- */
+  html += '<fieldset class="block"><legend>Antes de começar: qual é a situação do seu projeto?</legend>'+
+    '<p style="margin:0 0 10px;font-size:12.8px;color:var(--ink-soft);line-height:1.6;">Logo na aba <b>01 · Dados &amp; Premissas</b> você escolhe entre duas situações. '+
+    'Essa escolha muda o que o sistema cobra no "Ano 0" (hoje):</p>'+
+    '<div class="tipo-projeto-grid">'+
+    '<div class="tipo-card active" style="cursor:default;"><div class="tc-title"><span class="dot" style="background:var(--green);border-color:var(--green-dark);"></span>Projeto do Zero</div>'+
+    '<div class="tc-desc">Você ainda vai investir — comprar máquinas, construir, montar a estrutura. O sistema desconta o valor desse investimento e o capital de giro logo no início da análise (Ano 0).</div></div>'+
+    '<div class="tipo-card active" style="cursor:default;"><div class="tc-title"><span class="dot" style="background:var(--green);border-color:var(--green-dark);"></span>Projeto em Andamento</div>'+
+    '<div class="tc-desc">A estrutura já existe e já está funcionando. O sistema não cobra novo investimento nem capital de giro no início — a análise foca só no que o negócio já gera de resultado dia a dia.</div></div>'+
+    '</div></fieldset>';
 
   /* ---- PASSO A PASSO ---- */
   html += '<fieldset class="block"><legend>Passo a passo de preenchimento</legend><ol class="help-steps">';
 
   html += '<li><h4>01 · Dados &amp; Premissas</h4>'+
-    '<p>Comece identificando o produtor, o local e a atividade produtiva (ex.: apicultura, caprinocultura, fruticultura). '+
-    'Informe também o número de beneficiários da renda e as premissas gerais do projeto, como a Taxa Mínima de Atratividade (TMA), '+
+    '<p>Comece escolhendo se o projeto é "do zero" ou "em andamento" (veja acima), e identifique o produtor, o local e a atividade produtiva '+
+    '(ex.: apicultura, caprinocultura, fruticultura). Informe também o número de beneficiários da renda e as premissas gerais do projeto, como o '+
+    '<b>'+LABELS.tmaCurto.toLowerCase()+'</b> — o rendimento que você teria aplicando esse dinheiro em outro lugar, como a poupança ou um banco (TMA) —, '+
     'o ano que será usado como referência para a análise e os meses de cobertura do capital de giro.</p>'+
     '<p>Essas informações servem de base para todos os cálculos das demais abas — por isso é o primeiro passo.</p></li>';
 
@@ -775,7 +915,8 @@ function renderAjuda(){
   html += '<li><h4>05 · Capital de Giro</h4>'+
     '<p>O capital de giro é o dinheiro necessário para pagar as contas do dia a dia antes que as vendas comecem a entrar. '+
     'O sistema sugere um valor automático (com base no custo mensal e nos meses de cobertura definidos nas premissas), '+
-    'mas você também pode informar um valor manual, se preferir.</p></li>';
+    'mas você também pode informar um valor manual, se preferir.</p>'+
+    '<p>Se você escolheu <b>"Projeto em Andamento"</b> na etapa 01, esta aba fica marcada como "não aplicável", pois considera-se que o negócio já tem seu capital de giro resolvido no dia a dia.</p></li>';
 
   html += '<li><h4>06 · Receitas Projetadas</h4>'+
     '<p>Cadastre cada produto ou serviço que será vendido, com a quantidade esperada e o preço unitário em cada um dos 5 anos de análise. '+
@@ -788,7 +929,9 @@ function renderAjuda(){
     'o chamado fluxo de caixa líquido. É a "espinha dorsal" que alimenta os indicadores de viabilidade.</p></li>';
 
   html += '<li><h4>08 · Indicadores &amp; Cenários</h4>'+
-    '<p>Aqui você vê se o projeto vale a pena: VPL, TIR, Payback, Ponto de Equilíbrio, lucratividade e renda mensal por beneficiário. '+
+    '<p>Aqui você vê se o projeto vale a pena, com um <b>semáforo de viabilidade</b> (verde, amarelo ou vermelho) logo no topo, além do '+
+    LABELS.vplCurto.toLowerCase()+' (VPL), da '+LABELS.tirCurto.toLowerCase()+' (TIR), do '+LABELS.paybackCurto.toLowerCase()+' (Payback), '+
+    'do ponto de equilíbrio, da lucratividade e da renda mensal por beneficiário. '+
     'Também é possível simular um cenário otimista (mais receita, menos custo) e um pessimista (menos receita, mais custo), '+
     'para entender os riscos do projeto. Veja a explicação de cada indicador no glossário abaixo.</p></li>';
 
@@ -802,26 +945,39 @@ function renderAjuda(){
   html += '<div class="help-callout"><b>Dica:</b> preencha as abas na ordem sugerida (01 a 08). Como cada etapa usa os dados da anterior, '+
     'preencher fora de ordem pode fazer os indicadores aparecerem zerados ou incompletos até que tudo esteja lançado.</div>';
 
+  /* ---- SEMÁFORO DE VIABILIDADE ---- */
+  html += '<fieldset class="block"><legend>O semáforo de viabilidade</legend>'+
+    '<p style="margin:0 0 12px;font-size:12.8px;color:var(--ink-soft);line-height:1.6;">Na aba <b>Painel Geral</b> e na aba <b>Indicadores &amp; Cenários</b>, o sistema mostra um semáforo '+
+    'para resumir, de forma visual, se o projeto compensa ou não:</p>'+
+    renderSemaforo({vpl:100,tir:0.5,payback:1,fluxo0:-1,cashflows:[-1,1,1,1,1,1],andamento:false})+
+    renderSemaforo({vpl:50,tir:num(state.premissas.tma)/100+0.01,payback:4.5,fluxo0:-1,cashflows:[-1,1,1,1,1,1],andamento:false})+
+    renderSemaforo({vpl:-100,tir:0.01,payback:null,fluxo0:-1,cashflows:[-1,0,0,0,0,0],andamento:false})+
+    '</fieldset>';
+
+  html += '<div class="help-callout"><b>Como calculamos a cor:</b> começamos pelo '+LABELS.vplCurto.toLowerCase()+' (VPL). Se ele for negativo, o sinal já fica vermelho. '+
+    'Se for positivo, olhamos a '+LABELS.tirCurto.toLowerCase()+' (TIR) comparada ao '+LABELS.tmaCurto.toLowerCase()+': folga pequena (menos de 3 pontos percentuais) ou '+
+    'retorno do dinheiro muito perto do fim dos 5 anos analisados dá amarelo (viável, mas apertado); folga confortável dá verde.</div>';
+
   /* ---- GLOSSÁRIO DE INDICADORES ---- */
   html += '<fieldset class="block"><legend>O que significam os valores e índices dos resultados</legend>';
 
-  html += glossItem('Valor Presente Líquido', 'VPL',
-    'Traz todo o dinheiro que o projeto vai gerar (ou consumir) no futuro para o valor de hoje, descontando a Taxa Mínima de Atratividade (TMA) — '+
+  html += glossItem(LABELS.vplCurto, 'VPL · Valor Presente Líquido',
+    'Traz todo o dinheiro que o projeto vai gerar (ou consumir) no futuro para o valor de hoje, descontando o '+LABELS.tmaCurto.toLowerCase()+' (TMA) — '+
     'ou seja, considera que "um real hoje vale mais do que um real daqui a 5 anos".',
-    '<b>Como ler:</b> VPL positivo significa que o projeto gera mais riqueza do que aplicar o mesmo dinheiro à TMA — o projeto é economicamente vantajoso. '+
-    'VPL negativo indica que o projeto, nas condições simuladas, não cobre o custo de oportunidade do capital investido.',
-    'Quanto maior o VPL, melhor');
+    '<b>Como ler:</b> um valor positivo significa que o projeto gera mais riqueza do que deixar esse dinheiro rendendo no banco — o projeto é economicamente vantajoso. '+
+    'Um valor negativo indica que o projeto, nas condições simuladas, não cobre o rendimento mínimo desejado sobre o capital investido.',
+    'Quanto maior, melhor');
 
-  html += glossItem('Taxa Interna de Retorno', 'TIR',
-    'É a taxa de retorno anual que o próprio projeto proporciona — a "rentabilidade" do investimento, expressa em porcentagem ao ano.',
-    '<b>Como ler:</b> compare a TIR com a TMA. Se a TIR for maior que a TMA, o projeto rende mais do que outras alternativas de aplicação do dinheiro e vale a pena investir. '+
-    'Se for menor (ou não convergir), o projeto não é atrativo financeiramente nas condições atuais.',
-    'Quanto maior a TIR, melhor');
+  html += glossItem(LABELS.tirCurto, 'TIR · Taxa Interna de Retorno',
+    'É a taxa de retorno anual que o próprio negócio proporciona — o quanto ele "rende" por ano, em porcentagem, comparado ao dinheiro que foi colocado nele.',
+    '<b>Como ler:</b> compare com o '+LABELS.tmaCurto.toLowerCase()+'. Se a rentabilidade anual for maior, o projeto rende mais do que outras alternativas de aplicação do dinheiro e vale a pena investir. '+
+    'Se for menor, ou se aparecer a mensagem de "não se aplica", o projeto não é atrativo financeiramente nas condições atuais, ou simplesmente não exige um aporte inicial a ser recuperado.',
+    'Quanto maior, melhor');
 
-  html += glossItem('Payback Simples', 'Período de retorno',
+  html += glossItem(LABELS.paybackCurto, 'Payback · Período de retorno',
     'Indica quanto tempo (em anos) leva para o produtor recuperar todo o dinheiro investido no projeto, somando os fluxos de caixa acumulados.',
-    '<b>Como ler:</b> quanto menor o payback, mais rápido o investimento "se paga" e menor o risco de o produtor ficar exposto por muito tempo. '+
-    'Projetos com payback maior que o horizonte de análise (5 anos) ainda não recuperaram o investimento dentro do período estudado.',
+    '<b>Como ler:</b> quanto menor esse tempo, mais rápido o investimento "se paga" e menor o risco de o produtor ficar exposto por muito tempo. '+
+    'Projetos que não recuperam o investimento dentro do horizonte de análise (5 anos) mostram um aviso nesse sentido.',
     'Quanto menor, melhor');
 
   html += glossItem('Ponto de Equilíbrio', 'Break-even',
@@ -845,11 +1001,14 @@ function renderAjuda(){
   html += glossItem('Cenários (Otimista / Realista / Pessimista)', 'Análise de sensibilidade',
     'Recalcula todos os indicadores aplicando variações percentuais de aumento ou redução na receita e no custo, para simular momentos '+
     'de mercado favoráveis (otimista) ou desfavoráveis (pessimista).',
-    '<b>Como ler:</b> se mesmo no cenário pessimista o VPL continuar positivo e a TIR continuar acima da TMA, o projeto tem uma margem de segurança maior '+
-    'diante de imprevistos como quebra de safra, queda de preços ou aumento de insumos.',
+    '<b>Como ler:</b> se mesmo no cenário pessimista o '+LABELS.vplCurto.toLowerCase()+' continuar positivo e a '+LABELS.tirCurto.toLowerCase()+' continuar acima do '+
+    LABELS.tmaCurto.toLowerCase()+', o projeto tem uma margem de segurança maior diante de imprevistos como quebra de safra, queda de preços ou aumento de insumos.',
     'Quanto mais estável entre os cenários, mais seguro');
 
   html += '</fieldset>';
+
+  html += '<div class="help-callout"><b>Sobre as mensagens do sistema:</b> em vez de mostrar erros matemáticos (como "não converge" ou "NaN") quando um índice não pode ser calculado, '+
+    'o SAF-PP explica em linguagem simples o motivo — por exemplo, "Não se aplica — o projeto não exige aporte inicial para gerar lucro". Isso é normal e não significa um erro no preenchimento.</div>';
 
   html += '<div class="help-callout"><b>Importante:</b> estes indicadores são ferramentas de apoio à decisão, construídas a partir dos dados que você informou. '+
     'A qualidade da análise depende diretamente da qualidade das informações lançadas em cada aba. Em caso de dúvida sobre os números, '+
@@ -873,18 +1032,17 @@ function renderDashboard(){
   const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
   const lucroAno = scn.anos[y].lucroContabil;
   const rendaBenef = lucroAno/12/Math.max(1,num(state.meta.beneficiarios));
-  const vplPos = scn.vpl!=null && scn.vpl>=0;
 
-  let html = '<div class="panel-head"><div><div class="eyebrow">Resumo executivo</div><h2>Painel Geral</h2></div>'+
-    '<div style="font-size:12px;color:var(--ink-soft)">'+(state.meta.produtor||'')+' · '+(state.meta.atividade||'')+'</div></div>';
+  let html = '<div class="panel-head"><div><h2>Painel Geral</h2></div>'+
+    '<div style="font-size:12px;color:var(--ink-soft)">'+(state.meta.produtor||'')+' · '+(state.meta.atividade||'')+
+    (isAndamento()?' · <span style="color:var(--ochre-dark)">Projeto em Andamento</span>':' · Projeto do Zero')+'</div></div>';
 
-  html += '<div class="stamp-wrap"><div class="stamp '+(vplPos?'':'warn')+'">'+
-    (scn.vpl==null?'VPL indisponível': (vplPos?'Projeto viável à TMA':'Atenção: VPL negativo') )+'</div></div>';
+  html += renderSemaforo(scn);
 
   html += '<div class="kpi-grid">'+
-    kpi('VPL (Valor Presente Líquido)', scn.vpl!=null?fmtR$(scn.vpl):'—', scn.vpl!=null && scn.vpl<0, 'à TMA de '+fmtNum(state.premissas.tma,1)+'% a.a.')+
-    kpi('TIR (Taxa Interna de Retorno)', scn.tir!=null?fmtPct(scn.tir,1):'não converge', scn.tir!=null && scn.tir < num(state.premissas.tma)/100, 'comparar com a TMA')+
-    kpi('Payback (recuperação)', scn.payback!=null?fmtNum(scn.payback,2)+' anos':'não recupera em 5 anos', scn.payback==null, 'tempo até saldo positivo')+
+    kpi(LABELS.vplCompleto, explainVPL(scn), scn.vpl!=null && scn.vpl<0, 'ao '+LABELS.tmaCurto.toLowerCase()+' de '+fmtNum(state.premissas.tma,1)+'% a.a.')+
+    kpi(LABELS.tirCompleto, explainTIR(scn), scn.tir!=null && scn.tir < num(state.premissas.tma)/100, 'compare com o '+LABELS.tmaCurto.toLowerCase())+
+    kpi(LABELS.paybackCompleto, explainPayback(scn), scn.payback==null && scn.fluxo0<0, 'tempo até o saldo ficar positivo')+
     kpi('Renda mensal / beneficiário (ano '+y+')', fmtR$(rendaBenef), rendaBenef<0, num(state.meta.beneficiarios)+' beneficiário(s)')+
     '</div>';
 
@@ -908,17 +1066,15 @@ function renderDashboard(){
   // summary notes
   html += '<div><h3 style="font-size:14px;margin-bottom:6px;">Como o projeto está montado</h3><ul class="note-list">'+
     '<li>Patrimônio já existente (sem novo desembolso): <b>'+fmtR$(inv.patrimonioExistente)+'</b></li>'+
-    '<li>Novo investimento com recursos próprios (Ano 0): <b>'+fmtR$(inv.novoProprio)+'</b></li>'+
+    '<li>Novo investimento com recursos próprios (Ano 0): <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0))+'</b></li>'+
     '<li>Novo investimento financiado: <b>'+fmtR$(inv.novoFinanciado)+'</b></li>'+
-    '<li>Capital de giro estimado: <b>'+fmtR$(scn.giroBase)+'</b></li>'+
+    '<li>Capital de giro estimado: <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase))+'</b></li>'+
     '<li>Depreciação anual total: <b>'+fmtR$(inv.deprecTotal)+'</b> (custo contábil, não sai do caixa)</li>'+
     '<li>Reposição de bens prevista dentro dos 5 anos: '+repoList(inv.reposicoes)+'</li>'+
     '</ul></div>';
 
   html += '</div>';
-
-  html += '<div class="panel-note">Dica: comece pela aba <b>01 · Dados &amp; Premissas</b>, depois lance seus <b>Investimentos</b> marcando o que já é seu (bens já existentes) e o que ainda vai comprar. O restante das abas se conecta automaticamente.</div>';
-
+  
   document.getElementById('content').innerHTML = html;
 }
 function repoList(rep){
@@ -932,7 +1088,20 @@ function kpi(lbl,val,neg,sub){
 
 /* ============================== PANEL: PROJETO (meta + premissas) ============================== */
 function renderProjeto(){
-  let html = '<div class="panel-head"><div><div class="eyebrow">Identificação</div><h2>Dados do Projeto & Premissas</h2></div></div>';
+  let html = '<div class="panel-head"><div><h2>Dados do Projeto & Premissas</h2></div></div>';
+
+  const andamento = isAndamento();
+  html += '<fieldset class="block"><legend>Qual é a situação do seu projeto?</legend>'+
+    '<div class="tipo-projeto-grid">'+
+    '<button type="button" class="tipo-card'+(!andamento?' active':'')+'" data-action="set-tipo-projeto" data-val="zero">'+
+      '<div class="tc-title"><span class="dot"></span>Projeto do Zero</div>'+
+      '<div class="tc-desc">Ainda vou construir, comprar máquinas/equipamentos ou montar a estrutura. O sistema vai considerar o investimento inicial (Ano 0) e a necessidade de capital de giro.</div>'+
+    '</button>'+
+    '<button type="button" class="tipo-card'+(andamento?' active':'')+'" data-action="set-tipo-projeto" data-val="andamento">'+
+      '<div class="tc-title"><span class="dot"></span>Projeto em Andamento</div>'+
+      '<div class="tc-desc">A estrutura já existe e a atividade já está funcionando. O sistema não vai cobrar novo investimento no Ano 0 nem capital de giro inicial.</div>'+
+    '</button>'+
+    '</div></fieldset>';
 
   html += '<fieldset class="block"><legend>Identificação</legend><div class="grid g2">'+
     fld('Produtor(a) / Associação', 'meta.produtor', state.meta.produtor)+
@@ -944,12 +1113,19 @@ function renderProjeto(){
 
   html += '<fieldset class="block"><legend>Premissas financeiras</legend><div class="grid g4">'+
     fld('Impostos/taxas sobre a receita (%)','premissas.impostoReceita', state.premissas.impostoReceita, {type:'number', step:0.1})+
-    fld('Taxa Mínima de Atratividade – TMA (% a.a.)','premissas.tma', state.premissas.tma, {type:'number', step:0.1})+
+    fld(LABELS.tmaCurto+' (% a.a.)','premissas.tma', state.premissas.tma, {type:'number', step:0.1})+
     fld('Ano de análise para indicadores (1–5)','premissas.anoAnalise', state.premissas.anoAnalise, {type:'number', step:1})+
-    fld('Meses de custo para Capital de Giro','premissas.mesesGiro', state.premissas.mesesGiro, {type:'number', step:1})+
+    fld('Meses de custo para Capital de Giro','premissas.mesesGiro', state.premissas.mesesGiro, {type:'number', step:1, readonly:andamento})+
     '</div></fieldset>';
 
-  html += '<div class="panel-note">Essas premissas alimentam todos os cálculos automáticos: impostos reduzem a receita líquida; a TMA é usada no VPL/TIR; o "ano de análise" define qual ano aparece nos indicadores e no ponto de equilíbrio.</div>';
+  html += '<div class="panel-note">Essas premissas alimentam todos os cálculos automáticos: impostos reduzem a receita líquida; '+
+    'o <b>'+LABELS.tmaCurto.toLowerCase()+'</b> (TMA) é o retorno mínimo que você aceitaria ganhar aplicando esse mesmo dinheiro em outro lugar — como a poupança ou um banco — '+
+    'e é usado para saber se o negócio vale mais a pena do que essa alternativa; o "ano de análise" define qual ano aparece nos indicadores e no ponto de equilíbrio.</div>';
+
+  if(andamento){
+    html += '<div class="help-callout"><b>Projeto em Andamento selecionado:</b> as abas <b>Investimentos</b> e <b>Capital de Giro</b> continuam disponíveis para registro/consulta, '+
+      'mas os valores de novo investimento com recursos próprios e o capital de giro inicial <u>não</u> serão descontados no Ano 0 do fluxo de caixa, pois considera-se que a estrutura já está pronta e em operação.</div>';
+  }
 
   document.getElementById('content').innerHTML = html;
 }
@@ -963,10 +1139,14 @@ const ORIGENS = [
 const CATEGORIAS = ['Terrenos','Obras e Instalações','Equipamentos e Máquinas','Veículos','Semoventes (Animais)','Outros'];
 
 function renderInvest(){
-  let html = '<div class="panel-head"><div><div class="eyebrow">Ativos do empreendimento</div><h2>Investimentos</h2></div>'+
+  let html = '<div class="panel-head"><div><h2>Investimentos</h2></div>'+
     '<button class="btn ochre small" data-action="add-inv">+ novo item</button></div>';
 
   html += '<div class="panel-note">Para máquinas e bens <b>já comprados</b>, marque a origem como "Já existente": o valor entra como patrimônio e gera depreciação, mas <u>não</u> é descontado do fluxo de caixa futuro. Informe o valor de mercado atual (não o valor da nota antiga) e os anos de uso, para calcular a vida útil restante.</div>';
+
+  if(isAndamento()){
+    html += '<div class="help-callout"><b>Projeto em Andamento:</b> mesmo que você lance itens como "Novo — recursos próprios", esse valor <u>não</u> será descontado no Ano 0 do fluxo de caixa, pois considera-se que o investimento inicial já foi feito. Use esta aba apenas para registrar o patrimônio existente (para fins de depreciação) ou para planejar novos investimentos financiados.</div>';
+  }
 
   html += '<div class="wrap-table"><table class="data"><thead><tr>'+
     '<th style="min-width:170px">Descrição</th><th>Categoria</th><th style="min-width:230px">Origem</th>'+
@@ -1023,7 +1203,7 @@ function esc(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
 
 /* ============================== PANEL: FINANCIAMENTOS ============================== */
 function renderFinanc(){
-  let html = '<div class="panel-head"><div><div class="eyebrow">Compromissos financeiros</div><h2>Dívidas Ativas / Financiamentos</h2></div>'+
+  let html = '<div class="panel-head"><div><h2>Dívidas Ativas / Financiamentos</h2></div>'+
     '<button class="btn ochre small" data-action="add-fin">+ nova dívida</button></div>';
 
   html += '<div class="panel-note">Se algum bem já usado (ou o novo item marcado como "financiado") ainda tem parcelas a pagar — como um financiamento Pronaf — lance aqui os valores anuais. Essas parcelas <b>saem do caixa de verdade</b> e entram no Fluxo de Caixa.</div>';
@@ -1052,7 +1232,7 @@ function renderFinanc(){
 
 /* ============================== PANEL: CUSTOS ============================== */
 function renderCustos(){
-  let html = '<div class="panel-head"><div><div class="eyebrow">Custeio</div><h2>Custos Operacionais</h2></div>'+
+  let html = '<div class="panel-head"><div><h2>Custos Operacionais</h2></div>'+
     '<button class="btn ochre small" data-action="add-cst">+ novo custo</button></div>';
 
   html += '<div class="panel-note">Use o <b>histórico real do último ano</b> do empreendimento sempre que possível, em vez de estimar. Classifique como <b>Fixo</b> (não varia com a produção) ou <b>Variável</b> (varia com a quantidade produzida) — essa classificação é usada no cálculo do Ponto de Equilíbrio.</div>';
@@ -1083,7 +1263,14 @@ function renderCustos(){
 function renderGiro(){
   const {total:custoTotal} = calcCustosPorAno();
   const auto = calcCapitalGiro(custoTotal[1]);
-  let html = '<div class="panel-head"><div><div class="eyebrow">Liquidez inicial</div><h2>Capital de Giro</h2></div></div>';
+  let html = '<div class="panel-head"><div><h2>Capital de Giro</h2></div></div>';
+
+  if(isAndamento()){
+    html += '<div class="help-callout"><b>Não aplicável — Projeto em Andamento.</b> Como a atividade já está em funcionamento, o sistema não exige capital de giro inicial no Ano 0. '+
+      'Se quiser voltar a considerar esse valor, mude para "Projeto do Zero" na aba <b>01 · Dados &amp; Premissas</b>.</div>';
+    document.getElementById('content').innerHTML = html;
+    return;
+  }
 
   html += '<div class="panel-note">Capital de giro é o valor necessário para manter as atividades <b>antes</b> de receber pelas primeiras vendas. Por padrão sugerimos um cálculo automático a partir dos custos operacionais do Ano 1, mas você pode informar um valor manual.</div>';
 
@@ -1107,7 +1294,7 @@ function renderGiro(){
 
 /* ============================== PANEL: RECEITAS ============================== */
 function renderReceitas(){
-  let html = '<div class="panel-head"><div><div class="eyebrow">Produção e vendas</div><h2>Receitas Projetadas</h2></div>'+
+  let html = '<div class="panel-head"><div><h2>Receitas Projetadas</h2></div>'+
     '<button class="btn ochre small" data-action="add-rec">+ novo produto</button></div>';
 
   html += '<div class="panel-note">Separe o que é <b>vendido</b> (gera caixa) do que é <b>autoconsumo</b> (garante alimentação da família, mas não gera receita monetária) usando o % de autoconsumo. O valor do autoconsumo entra no resultado da família, mas não no fluxo de caixa.</div>';
@@ -1146,9 +1333,13 @@ function renderReceitas(){
 /* ============================== PANEL: FLUXO DE CAIXA ============================== */
 function renderFluxo(){
   const scn = buildScenario();
-  let html = '<div class="panel-head"><div><div class="eyebrow">Projeção — calculada automaticamente</div><h2>Fluxo de Caixa</h2></div></div>';
+  let html = '<div class="panel-head"><div><h2>Fluxo de Caixa</h2></div></div>';
 
   html += '<div class="panel-note">O Ano 0 reflete a fotografia de hoje: só sai caixa para o que é <b>novo, com recursos próprios</b>, mais o capital de giro. Bens já existentes não geram saída de caixa no Ano 0 — apenas depreciação e, se a vida útil acabar dentro do horizonte, uma reposição futura.</div>';
+
+  if(scn.andamento){
+    html += '<div class="help-callout"><b>Projeto em Andamento:</b> o Ano 0 não considera novo investimento nem capital de giro inicial, pois a atividade já está funcionando.</div>';
+  }
 
   const rows = [
     ['Receita bruta de comercialização', y=>scn.anos[y].brutaComerc, 0],
@@ -1162,7 +1353,7 @@ function renderFluxo(){
 
   html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:230px">Ano 0</th><th>Valor</th>'+
     YEARS.map(y=>'<th>Ano '+y+'</th>').join('')+'</tr></thead><tbody>';
-  html += '<tr><td class="txt">(–) Investimento novo (recursos próprios)</td><td class="mono">'+fmtR$(-scn.inv.novoProprio)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
+  html += '<tr><td class="txt">(–) Investimento novo (recursos próprios)</td><td class="mono">'+fmtR$(-scn.novoProprioAno0)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
   html += '<tr><td class="txt">(–) Capital de giro inicial</td><td class="mono">'+fmtR$(-scn.giroBase)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
   html += '<tr class="total-row"><td class="txt">(=) Fluxo Ano 0</td><td class="mono">'+fmtR$(scn.fluxo0)+'</td>'+YEARS.map(()=> '<td></td>').join('')+'</tr>';
   html += '</tbody></table></div>';
@@ -1185,13 +1376,15 @@ function renderIndicadores(){
   const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
   const pe = pontoEquilibrio(scn);
 
-  let html = '<div class="panel-head"><div><div class="eyebrow">Viabilidade</div><h2>Indicadores &amp; Cenários</h2></div></div>';
+  let html = '<div class="panel-head"><div><h2>Indicadores &amp; Cenários</h2></div></div>';
+
+  html += renderSemaforo(scn);
 
   html += '<div class="kpi-grid">'+
-    kpi('VPL (à TMA de '+fmtNum(state.premissas.tma,1)+'%)', scn.vpl!=null?fmtR$(scn.vpl):'—', scn.vpl<0)+
-    kpi('TIR', scn.tir!=null?fmtPct(scn.tir,1):'não converge', false)+
-    kpi('Payback simples', scn.payback!=null?fmtNum(scn.payback,2)+' anos':'> 5 anos', scn.payback==null)+
-    kpi('Ponto de equilíbrio (Ano '+y+')', pe.valor!=null?fmtR$(pe.valor):'—', pe.valor==null)+
+    kpi(LABELS.vplCompleto+' (ao '+fmtNum(state.premissas.tma,1)+'% a.a.)', explainVPL(scn), scn.vpl!=null && scn.vpl<0)+
+    kpi(LABELS.tirCompleto, explainTIR(scn), scn.tir!=null && scn.tir < num(state.premissas.tma)/100)+
+    kpi(LABELS.paybackCompleto, explainPayback(scn), scn.payback==null && scn.fluxo0<0)+
+    kpi('Ponto de equilíbrio (Ano '+y+')', pe.valor!=null?fmtR$(pe.valor):'Não se aplica — receita não cobre custos variáveis', pe.valor==null)+
     '</div>';
 
   html += '<fieldset class="block"><legend>Ponto de equilíbrio — detalhamento (Ano '+y+')</legend><div class="grid g3">'+
@@ -1232,8 +1425,8 @@ function renderIndicadores(){
       '<td>'+fmtR$(scnPess.anos[y].lucroContabil/12/nBenef)+'</td>'+
       '<td>'+fmtR$(scn.anos[y].lucroContabil/12/nBenef)+'</td>'+
       '<td>'+fmtR$(scnOtim.anos[y].lucroContabil/12/nBenef)+'</td></tr>'+
-    '<tr class="total-row"><td class="txt">VPL</td><td>'+(scnPess.vpl!=null?fmtR$(scnPess.vpl):'—')+'</td><td>'+(scn.vpl!=null?fmtR$(scn.vpl):'—')+'</td><td>'+(scnOtim.vpl!=null?fmtR$(scnOtim.vpl):'—')+'</td></tr>'+
-    '<tr class="total-row"><td class="txt">TIR</td><td>'+(scnPess.tir!=null?fmtPct(scnPess.tir,1):'—')+'</td><td>'+(scn.tir!=null?fmtPct(scn.tir,1):'—')+'</td><td>'+(scnOtim.tir!=null?fmtPct(scnOtim.tir,1):'—')+'</td></tr>'+
+    '<tr class="total-row"><td class="txt">'+LABELS.vplCurto+' (VPL)</td><td>'+explainVPL(scnPess)+'</td><td>'+explainVPL(scn)+'</td><td>'+explainVPL(scnOtim)+'</td></tr>'+
+    '<tr class="total-row"><td class="txt">'+LABELS.tirCurto+' (TIR)</td><td>'+explainTIR(scnPess)+'</td><td>'+explainTIR(scn)+'</td><td>'+explainTIR(scnOtim)+'</td></tr>'+
     '</tbody></table></div></fieldset>';
 
   document.getElementById('content').innerHTML = html;
@@ -1294,6 +1487,8 @@ function handleClick(e){
     state.receitas.push({id:uid('rec'),produto:'Novo produto',unidade:'Und.',percAutoconsumo:0,quantidades:{1:0,2:0,3:0,4:0,5:0},precos:{1:0,2:0,3:0,4:0,5:0}});
   } else if(action==='del-rec'){
     state.receitas = state.receitas.filter(x=>x.id!==id);
+  } else if(action==='set-tipo-projeto'){
+    state.meta.tipoProjeto = btn.dataset.val;
   } else { return; }
   scheduleSave();
   renderAll();
@@ -1471,29 +1666,37 @@ function exportPDF(){
     ['Relatório gerado em', new Date().toLocaleString('pt-BR')]
   ], 2);
 
-  const vplPos = scn.vpl!=null && scn.vpl>=0;
+  const semaf = calcSemaforo(scn);
+  const semafColor = semaf.cor==='verde'?C_GREEND : semaf.cor==='amarelo'?C_OCHRE : semaf.cor==='vermelho'?C_BRICK : C_FAINT;
   doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.setTextColor(...(vplPos?C_GREEND:C_BRICK));
-  doc.text(scn.vpl==null?'VPL indisponível' : (vplPos?'◆ PROJETO VIÁVEL À TMA INFORMADA':'◆ ATENÇÃO — VPL NEGATIVO À TMA INFORMADA'), marginX, y);
-  y += 18;
+  doc.setTextColor(...semafColor);
+  doc.text('◆ '+semaf.titulo.toUpperCase(), marginX, y);
+  y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C_SOFT);
+  const semafLines = doc.splitTextToSize(semaf.msg, pageW-2*marginX);
+  doc.text(semafLines, marginX, y);
+  y += semafLines.length*11 + 6;
+  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...C_FAINT);
+  doc.text(isAndamento()?'Tipo de projeto: Em Andamento (sem novo investimento inicial nem capital de giro no Ano 0)':'Tipo de projeto: Do Zero (com investimento inicial e capital de giro no Ano 0)', marginX, y);
+  y += 16;
   doc.setTextColor(...C_INK);
 
   /* ---------- PREMISSAS ---------- */
   sectionTitle('Premissas Financeiras', 'Dados inseridos');
   kvGrid([
     ['Impostos/taxas sobre a receita', fmtNum(state.premissas.impostoReceita,1)+'%'],
-    ['Taxa Mínima de Atratividade (TMA)', fmtNum(state.premissas.tma,1)+'% a.a.'],
+    [LABELS.tmaCurto+' (TMA)', fmtNum(state.premissas.tma,1)+'% a.a.'],
     ['Ano de análise dos indicadores', 'Ano '+y5],
-    ['Meses de custo p/ Capital de Giro', String(state.premissas.mesesGiro)+' meses']
+    ['Meses de custo p/ Capital de Giro', isAndamento()?'Não aplicável (projeto em andamento)':String(state.premissas.mesesGiro)+' meses']
   ], 2);
 
   /* ---------- RESULTADOS — INDICADORES ---------- */
   sectionTitle('Indicadores de Viabilidade', 'Resultados obtidos — cenário realista');
   kpiRow([
-    ['VPL (à TMA de '+fmtNum(state.premissas.tma,1)+'%)', scn.vpl!=null?money(scn.vpl):'—', scn.vpl!=null&&scn.vpl<0],
-    ['TIR', scn.tir!=null?fmtPct(scn.tir,1):'não converge', scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
-    ['Payback simples', scn.payback!=null?fmtNum(scn.payback,2)+' anos':'> 5 anos', scn.payback==null],
-    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?money(pe.valor):'—', pe.valor==null]
+    [LABELS.vplCurto+' (VPL) — ao '+fmtNum(state.premissas.tma,1)+'%', explainVPL(scn), scn.vpl!=null&&scn.vpl<0],
+    [LABELS.tirCurto+' (TIR)', explainTIR(scn), scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
+    [LABELS.paybackCurto+' (Payback)', explainPayback(scn), scn.payback==null&&scn.fluxo0<0],
+    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?money(pe.valor):'Não se aplica', pe.valor==null]
   ]);
   subTitle('Ponto de equilíbrio — detalhamento (Ano '+y5+')');
   kvGrid([
@@ -1504,9 +1707,9 @@ function exportPDF(){
   subTitle('Como o projeto está montado');
   kvGrid([
     ['Patrimônio já existente (sem novo desembolso)', money(scn.inv.patrimonioExistente)],
-    ['Novo investimento — recursos próprios (Ano 0)', money(scn.inv.novoProprio)],
+    ['Novo investimento — recursos próprios (Ano 0)', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.novoProprioAno0)],
     ['Novo investimento financiado', money(scn.inv.novoFinanciado)],
-    ['Capital de giro estimado', money(scn.giroBase)],
+    ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.giroBase)],
     ['Depreciação anual total', money(scn.inv.deprecTotal)],
     ['Renda mensal / beneficiário (Ano '+y5+')', money(scn.anos[y5].lucroContabil/12/Math.max(1,num(state.meta.beneficiarios)))]
   ], 2);
@@ -1562,14 +1765,18 @@ function exportPDF(){
 
   /* ---------- CAPITAL DE GIRO ---------- */
   sectionTitle('Capital de Giro', 'Dados inseridos e resultado');
-  const {total:custoTotalAno} = calcCustosPorAno();
-  const giroAuto = calcCapitalGiro(custoTotalAno[1]);
-  kvGrid([
-    ['Modo de cálculo', state.capitalGiro.modo==='manual'?'Valor manual':'Automático'],
-    ['Custo operacional mensal (Ano 1)', money(custoTotalAno[1]/12)],
-    ['Meses de cobertura', state.premissas.mesesGiro+' meses'],
-    ['Capital de giro considerado', money(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):giroAuto)]
-  ], 2);
+  if(isAndamento()){
+    note('Não aplicável — Projeto em Andamento. Como a atividade já está em funcionamento, o sistema não exige capital de giro inicial no Ano 0.');
+  } else {
+    const {total:custoTotalAno} = calcCustosPorAno();
+    const giroAuto = calcCapitalGiro(custoTotalAno[1]);
+    kvGrid([
+      ['Modo de cálculo', state.capitalGiro.modo==='manual'?'Valor manual':'Automático'],
+      ['Custo operacional mensal (Ano 1)', money(custoTotalAno[1]/12)],
+      ['Meses de cobertura', state.premissas.mesesGiro+' meses'],
+      ['Capital de giro considerado', money(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):giroAuto)]
+    ], 2);
+  }
 
   /* ---------- RECEITAS ---------- */
   sectionTitle('Receitas Projetadas', 'Dados inseridos');
@@ -1594,7 +1801,7 @@ function exportPDF(){
   /* ---------- FLUXO DE CAIXA ---------- */
   sectionTitle('Fluxo de Caixa', 'Resultado calculado');
   table(['Ano 0',''], [
-    ['(–) Investimento novo (recursos próprios)', money(-scn.inv.novoProprio)],
+    ['(–) Investimento novo (recursos próprios)', money(-scn.novoProprioAno0)],
     ['(–) Capital de giro inicial', money(-scn.giroBase)],
     ['(=) Fluxo Ano 0', money(scn.fluxo0)]
   ], {columnStyles:{0:{halign:'left',cellWidth:260}}, didParseCell:function(d){ if(d.row.index===2) d.cell.styles.fontStyle='bold'; }});
@@ -1642,8 +1849,8 @@ function exportPDF(){
       fmtPct(scnOtim.anos[y5].lucroContabil/Math.max(1,(scnOtim.anos[y5].receitaLiquida+scnOtim.anos[y5].autoconsumo)))],
     ['Renda mensal por beneficiário',
       money(scnPess.anos[y5].lucroContabil/12/nBenef), money(scn.anos[y5].lucroContabil/12/nBenef), money(scnOtim.anos[y5].lucroContabil/12/nBenef)],
-    ['VPL', scnPess.vpl!=null?money(scnPess.vpl):'—', scn.vpl!=null?money(scn.vpl):'—', scnOtim.vpl!=null?money(scnOtim.vpl):'—'],
-    ['TIR', scnPess.tir!=null?fmtPct(scnPess.tir,1):'—', scn.tir!=null?fmtPct(scn.tir,1):'—', scnOtim.tir!=null?fmtPct(scnOtim.tir,1):'—']
+    [LABELS.vplCurto+' (VPL)', explainVPL(scnPess), explainVPL(scn), explainVPL(scnOtim)],
+    [LABELS.tirCurto+' (TIR)', explainTIR(scnPess), explainTIR(scn), explainTIR(scnOtim)]
   ];
   table(['Medida','Pessimista','Realista','Otimista'], bodyScn,
     {columnStyles:{0:{halign:'left',cellWidth:170}},
@@ -1677,7 +1884,7 @@ function wireTopBar(){
     showConfirm('Isso vai apagar todos os dados preenchidos. Deseja continuar?', ()=>{
       state = defaultState();
       state.investimentos=[]; state.financiamentos=[]; state.custos=[]; state.receitas=[];
-      state.meta = {produtor:'',local:'',atividade:'',beneficiarios:1,data:new Date().toISOString().slice(0,10)};
+      state.meta = {produtor:'',local:'',atividade:'',beneficiarios:1,data:new Date().toISOString().slice(0,10),tipoProjeto:'zero'};
       scheduleSave();
       renderAll();
       showToast('Todos os dados foram apagados.');
