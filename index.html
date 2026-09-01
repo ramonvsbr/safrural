@@ -415,7 +415,7 @@ function defaultState(){
       {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Cerca elétrica (a adquirir)",origem:"novo_proprio",quantidade:1,valorUnit:3200,vidaTotal:10,anosUso:0}
     ],
     financiamentos:[
-      {id:uid('fin'),descricao:"Pronaf — parcelas em andamento (trator)",saldoDevedor:8000,parcelas:{1:2000,2:2000,3:2000,4:2000,5:0}}
+      {id:uid('fin'),descricao:"Pronaf — parcelas em andamento (trator)",saldoDevedor:8000,percJuros:25,parcelas:{1:2000,2:2000,3:2000,4:2000,5:0}}
     ],
     custos:[
       {id:uid('cst'),descricao:"Ração / suplementação (palma, milho)",tipo:"Variável",valores:{1:9000,2:9200,3:9400,4:9600,5:9800}},
@@ -564,11 +564,20 @@ function calcCustosPorAno(){
 }
 
 function calcFinanciamentosPorAno(){
-  const out={1:0,2:0,3:0,4:0,5:0};
+  // "parcelas" é o valor total pago (amortização + juros) que sai do caixa.
+  // "percJuros" é o % da parcela que corresponde a juros (despesa financeira real);
+  // o restante é amortização de principal, que reduz dívida mas não é despesa contábil.
+  const parcelas={1:0,2:0,3:0,4:0,5:0};
+  const juros={1:0,2:0,3:0,4:0,5:0};
   state.financiamentos.forEach(f=>{
-    YEARS.forEach(y=>{ out[y]+= num(f.parcelas[y]); });
+    const pj = clamp(num(f.percJuros)/100,0,1);
+    YEARS.forEach(y=>{
+      const p = num(f.parcelas[y]);
+      parcelas[y]+= p;
+      juros[y]+= p*pj;
+    });
   });
-  return out;
+  return {parcelas, juros};
 }
 
 function calcReceitasPorAno(mult){
@@ -592,13 +601,14 @@ function buildScenario(mult){
   mult = mult || {receita:1, custo:1};
   const {total:custoTotal} = calcCustosPorAno();
   const {brutaComerc, autoconsumo} = calcReceitasPorAno(mult);
-  const financ = calcFinanciamentosPorAno();
+  const {parcelas:financ, juros:financJuros} = calcFinanciamentosPorAno();
   const inv = calcInvestimentos();
   const andamento = isAndamento();
   // Projeto "em andamento": não há novo aporte de investimento nem exigência
   // de capital de giro no Ano 0 — considera-se que a estrutura já está de pé.
   const giroBase = andamento ? 0 : calcCapitalGiro(custoTotal[1]);
   const novoProprioAno0 = andamento ? 0 : inv.novoProprio;
+  const ultimoAno = YEARS[YEARS.length-1];
 
   const impostoTx = clamp(num(state.premissas.impostoReceita)/100,0,1);
 
@@ -608,12 +618,26 @@ function buildScenario(mult){
     const impostos = brutaComerc[y]*impostoTx;
     const receitaLiquida = brutaComerc[y]-impostos;
     const financY = financ[y];
+    const jurosY = financJuros[y];
     const reposY = inv.reposicoes[y]||0;
-    const fluxoCaixa = receitaLiquida - custosY - financY - reposY;
-    const lucroContabil = receitaLiquida + autoconsumo[y] - custosY - inv.deprecTotal;
+    // Recuperação do capital de giro: o capital de giro imobilizado no Ano 0
+    // não é uma perda — ele volta a ficar disponível ao final do horizonte
+    // analisado. Sem essa recuperação o VPL fica sistematicamente subestimado.
+    const recGiroY = (y===ultimoAno && !andamento) ? giroBase : 0;
+    const fluxoCaixa = receitaLiquida - custosY - financY - reposY + recGiroY;
+    // Lucro contábil desconta apenas a parcela de JUROS do financiamento (despesa
+    // financeira real), não a amortização de principal (que é devolução de capital,
+    // não despesa) — e desconta depreciação (custo contábil não-caixa).
+    const lucroContabil = receitaLiquida + autoconsumo[y] - custosY - jurosY - inv.deprecTotal;
+    // "Renda familiar disponível": base de caixa (não contábil), pensada para medir
+    // o que efetivamente fica disponível para a família — soma o valor do
+    // autoconsumo (bem-estar/segurança alimentar, mesmo não sendo caixa) ao fluxo
+    // de caixa do ano (que já desconta parcela cheia, custos e reposições reais).
+    const rendaFamiliar = fluxoCaixa + autoconsumo[y];
     anos[y] = {
       brutaComerc:brutaComerc[y], autoconsumo:autoconsumo[y], impostos, receitaLiquida,
-      custos:custosY, financ:financY, reposicao:reposY, fluxoCaixa, lucroContabil
+      custos:custosY, financ:financY, juros:jurosY, reposicao:reposY, recGiro:recGiroY,
+      fluxoCaixa, lucroContabil, rendaFamiliar
     };
   });
 
@@ -988,13 +1012,16 @@ function renderAjuda(){
 
   html += glossItem('Lucratividade', '% sobre a receita',
     'É o percentual do lucro líquido em relação à receita total (receita líquida + autoconsumo) do ano analisado.',
-    '<b>Como ler:</b> mostra, de cada R$ 100,00 vendidos (ou produzidos para consumo), quanto sobra de lucro depois de pagar impostos, custos, '+
-    'financiamento e reposição de investimentos. Ajuda a comparar a eficiência do projeto independentemente do seu tamanho.',
+    '<b>Como ler:</b> mostra, de cada R$ 100,00 vendidos (ou produzidos para consumo), quanto sobra de lucro depois de pagar impostos, custos operacionais, '+
+    'os juros do financiamento e a depreciação dos bens. Ajuda a comparar a eficiência do projeto independentemente do seu tamanho. '+
+    '(A amortização de principal do financiamento e a reposição de bens não entram aqui — são movimentos de caixa, não despesa contábil; elas aparecem no Fluxo de Caixa.)',
     'Quanto maior, melhor');
 
   html += glossItem('Renda Mensal por Beneficiário', 'R$ / mês / pessoa',
-    'Divide o lucro líquido anual por 12 meses e pelo número de pessoas beneficiadas pela atividade (informado na aba Dados &amp; Premissas).',
-    '<b>Como ler:</b> é o indicador mais próximo do dia a dia da família — mostra, na prática, quanto o projeto pode contribuir de renda mensal por pessoa. '+
+    'Soma o fluxo de caixa do ano (o que sobra depois de todas as saídas reais: custos, parcela cheia do financiamento e reposição de bens) com o valor do autoconsumo, '+
+    'e divide o resultado por 12 meses e pelo número de pessoas beneficiadas pela atividade (informado na aba Dados &amp; Premissas).',
+    '<b>Como ler:</b> é o indicador mais próximo do dia a dia da família — mostra, na prática, quanto dinheiro (mais o que é consumido em casa) o projeto coloca à disposição por mês e por pessoa. '+
+    'Por usar caixa em vez de lucro contábil, ele não é reduzido pela depreciação (que não é uma saída de dinheiro), mas cai nos anos em que há reposição de um bem ou pagamento pesado de financiamento. '+
     'É útil para comparar o resultado do projeto com o custo de vida ou com outras fontes de renda.',
     'Quanto maior, melhor');
 
@@ -1030,8 +1057,7 @@ function renderDashboard(){
   const scn = buildScenario();
   const inv = scn.inv;
   const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
-  const lucroAno = scn.anos[y].lucroContabil;
-  const rendaBenef = lucroAno/12/Math.max(1,num(state.meta.beneficiarios));
+  const rendaBenef = scn.anos[y].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios));
 
   let html = '<div class="panel-head"><div><h2>Painel Geral</h2></div>'+
     '<div style="font-size:12px;color:var(--ink-soft)">'+(state.meta.produtor||'')+' · '+(state.meta.atividade||'')+
@@ -1043,7 +1069,7 @@ function renderDashboard(){
     kpi(LABELS.vplCompleto, explainVPL(scn), scn.vpl!=null && scn.vpl<0, 'ao '+LABELS.tmaCurto.toLowerCase()+' de '+fmtNum(state.premissas.tma,1)+'% a.a.')+
     kpi(LABELS.tirCompleto, explainTIR(scn), scn.tir!=null && scn.tir < num(state.premissas.tma)/100, 'compare com o '+LABELS.tmaCurto.toLowerCase())+
     kpi(LABELS.paybackCompleto, explainPayback(scn), scn.payback==null && scn.fluxo0<0, 'tempo até o saldo ficar positivo')+
-    kpi('Renda mensal / beneficiário (ano '+y+')', fmtR$(rendaBenef), rendaBenef<0, num(state.meta.beneficiarios)+' beneficiário(s)')+
+    kpi('Renda mensal / beneficiário (ano '+y+')', fmtR$(rendaBenef), rendaBenef<0, num(state.meta.beneficiarios)+' beneficiário(s) · caixa do ano + autoconsumo')+
     '</div>';
 
   html += '<div class="two-col">';
@@ -1120,7 +1146,9 @@ function renderProjeto(){
 
   html += '<div class="panel-note">Essas premissas alimentam todos os cálculos automáticos: impostos reduzem a receita líquida; '+
     'o <b>'+LABELS.tmaCurto.toLowerCase()+'</b> (TMA) é o retorno mínimo que você aceitaria ganhar aplicando esse mesmo dinheiro em outro lugar — como a poupança ou um banco — '+
-    'e é usado para saber se o negócio vale mais a pena do que essa alternativa; o "ano de análise" define qual ano aparece nos indicadores e no ponto de equilíbrio.</div>';
+    'e é usado para saber se o negócio vale mais a pena do que essa alternativa; o "ano de análise" define qual ano aparece nos indicadores e no ponto de equilíbrio. '+
+    '<br><br><b>Importante:</b> lance todos os valores (preços, custos, parcelas) em <u>preços de hoje</u>, sem embutir inflação futura — e use como '+LABELS.tmaCurto.toLowerCase()+' uma taxa também "de hoje" (ex.: o que a poupança ou um CDB pagariam agora), para manter a comparação justa. '+
+    'O percentual de impostos/taxas é aplicado de forma simplificada, direto sobre a receita comercializada (como no Simples/Funrural) — ele não substitui uma consulta ao regime tributário específico do seu caso, principalmente se a atividade estiver em faixas ou regras diferentes.</div>';
 
   if(andamento){
     html += '<div class="help-callout"><b>Projeto em Andamento selecionado:</b> as abas <b>Investimentos</b> e <b>Capital de Giro</b> continuam disponíveis para registro/consulta, '+
@@ -1206,26 +1234,46 @@ function renderFinanc(){
   let html = '<div class="panel-head"><div><h2>Dívidas Ativas / Financiamentos</h2></div>'+
     '<button class="btn ochre small" data-action="add-fin">+ nova dívida</button></div>';
 
-  html += '<div class="panel-note">Se algum bem já usado (ou o novo item marcado como "financiado") ainda tem parcelas a pagar — como um financiamento Pronaf — lance aqui os valores anuais. Essas parcelas <b>saem do caixa de verdade</b> e entram no Fluxo de Caixa.</div>';
+  html += '<div class="panel-note">Se algum bem já usado (ou o novo item marcado como "financiado") ainda tem parcelas a pagar — como um financiamento Pronaf — lance aqui os valores anuais. Essas parcelas <b>saem do caixa de verdade</b> e entram no Fluxo de Caixa. '+
+    'Informe também o <b>% de juros da parcela</b>: a maior parte da parcela costuma ser devolução do dinheiro emprestado (amortização), mas uma parte é juros — só essa parte de juros conta como despesa no Lucro Líquido. Se não souber o percentual exato, um valor aproximado (ex.: 20–30% em linhas de crédito rural subsidiadas) já melhora bastante a precisão do resultado.</div>';
 
-  html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:220px">Descrição</th><th>Saldo devedor (R$)</th>'+
+  html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:200px">Descrição</th><th>Saldo devedor (R$)</th><th>Juros na parcela (%)</th>'+
     YEARS.map(y=>'<th>Parcela Ano '+y+'</th>').join('')+'<th>Total</th><th></th></tr></thead><tbody>';
 
   if(state.financiamentos.length===0){
-    html += '<tr><td colspan="9" class="empty-hint">Nenhuma dívida lançada. Se as máquinas foram compradas à vista, esta aba pode ficar vazia.</td></tr>';
+    html += '<tr><td colspan="10" class="empty-hint">Nenhuma dívida lançada. Se as máquinas foram compradas à vista, esta aba pode ficar vazia.</td></tr>';
   }
   let totalPorAno={1:0,2:0,3:0,4:0,5:0};
+  let totalJurosPorAno={1:0,2:0,3:0,4:0,5:0};
   state.financiamentos.forEach(f=>{
     let totalF=0;
-    YEARS.forEach(y=>{ totalF+=num(f.parcelas[y]); totalPorAno[y]+=num(f.parcelas[y]); });
+    const pj = clamp(num(f.percJuros)/100,0,1);
+    YEARS.forEach(y=>{ const p=num(f.parcelas[y]); totalF+=p; totalPorAno[y]+=p; totalJurosPorAno[y]+=p*pj; });
     html += '<tr><td class="txt"><input type="text" data-bind="financiamentos.'+f.id+'.descricao" value="'+esc(f.descricao)+'"></td>'+
       '<td><input type="number" step="0.01" data-bind="financiamentos.'+f.id+'.saldoDevedor" value="'+f.saldoDevedor+'"></td>'+
+      '<td><input type="number" step="1" min="0" max="100" data-bind="financiamentos.'+f.id+'.percJuros" value="'+(f.percJuros||0)+'"></td>'+
       YEARS.map(y=>'<td><input type="number" step="0.01" data-bind="financiamentos.'+f.id+'.parcelas.'+y+'" value="'+(f.parcelas[y]||0)+'"></td>').join('')+
       '<td class="mono">'+fmtR$(totalF)+'</td>'+
       '<td class="row-actions"><button class="icon-btn" data-action="del-fin" data-id="'+f.id+'">✕</button></td></tr>';
   });
-  html += '<tr class="total-row"><td colspan="2">Total por ano</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(totalPorAno[y])+'</td>').join('')+'<td colspan="2"></td></tr>';
+  html += '<tr class="total-row"><td colspan="3">Total por ano</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(totalPorAno[y])+'</td>').join('')+'<td colspan="2"></td></tr>';
   html += '</tbody></table></div>';
+
+  html += '<div class="grid g2" style="margin-top:16px;">'+
+    kpiMini('Total de parcelas nos 5 anos', fmtR$(YEARS.reduce((a,y)=>a+totalPorAno[y],0)))+
+    kpiMini('Dos quais, juros (despesa financeira)', fmtR$(YEARS.reduce((a,y)=>a+totalJurosPorAno[y],0)))+
+    '</div>';
+
+  // Verificação cruzada informativa: valor lançado como "novo — financiado" em
+  // Investimentos vs. total de parcelas lançadas aqui. Ajuda a pegar esquecimento
+  // de lançar parcelas de um bem financiado (ou parcelas "soltas" sem bem vinculado).
+  const totNovoFin = state.investimentos.reduce((a,it)=> a + (it.origem==='novo_financiado'? itemValorTotal(it):0), 0);
+  const totParcelas5anos = YEARS.reduce((a,y)=>a+totalPorAno[y],0);
+  if(totNovoFin>0 || totParcelas5anos>0){
+    html += '<div class="panel-note" style="margin-top:14px;">Conferência: em <b>Investimentos</b>, você marcou <b>'+fmtR$(totNovoFin)+'</b> em bens "novo — financiado". Aqui, o total de parcelas lançadas nos 5 anos é <b>'+fmtR$(totParcelas5anos)+'</b>. '+
+      (totNovoFin>0 && totParcelas5anos===0 ? 'Não há parcelas lançadas para esse valor financiado — confira se não esqueceu de lançar a dívida.' :
+       'Esses valores não precisam bater exatamente (parcelas incluem juros e podem cobrir dívidas antigas não ligadas a um bem novo), mas vale conferir se fazem sentido entre si.')+'</div>';
+  }
 
   document.getElementById('content').innerHTML = html;
 }
@@ -1335,7 +1383,8 @@ function renderFluxo(){
   const scn = buildScenario();
   let html = '<div class="panel-head"><div><h2>Fluxo de Caixa</h2></div></div>';
 
-  html += '<div class="panel-note">O Ano 0 reflete a fotografia de hoje: só sai caixa para o que é <b>novo, com recursos próprios</b>, mais o capital de giro. Bens já existentes não geram saída de caixa no Ano 0 — apenas depreciação e, se a vida útil acabar dentro do horizonte, uma reposição futura.</div>';
+  html += '<div class="panel-note">O Ano 0 reflete a fotografia de hoje: só sai caixa para o que é <b>novo, com recursos próprios</b>, mais o capital de giro. Bens já existentes não geram saída de caixa no Ano 0 — apenas depreciação e, se a vida útil acabar dentro do horizonte, uma reposição futura. '+
+    'No último ano do período, o capital de giro imobilizado no Ano 0 volta a ficar disponível — por isso aparece como uma entrada ("recuperação do capital de giro"): ele não é uma despesa perdida, é dinheiro que continua girando no negócio.</div>';
 
   if(scn.andamento){
     html += '<div class="help-callout"><b>Projeto em Andamento:</b> o Ano 0 não considera novo investimento nem capital de giro inicial, pois a atividade já está funcionando.</div>';
@@ -1346,8 +1395,9 @@ function renderFluxo(){
     ['(–) Impostos e taxas sobre a receita', y=>-scn.anos[y].impostos, 0],
     ['(=) Receita líquida', y=>scn.anos[y].receitaLiquida, 1],
     ['(–) Custos operacionais', y=>-scn.anos[y].custos, 0],
-    ['(–) Parcelas de financiamento', y=>-scn.anos[y].financ, 0],
+    ['(–) Parcelas de financiamento (principal + juros)', y=>-scn.anos[y].financ, 0],
     ['(–) Reposição de investimentos', y=>-scn.anos[y].reposicao, 0],
+    ['(+) Recuperação do capital de giro', y=>scn.anos[y].recGiro, 0],
     ['(=) Fluxo de caixa líquido do ano', y=>scn.anos[y].fluxoCaixa, 1]
   ];
 
@@ -1389,7 +1439,7 @@ function renderIndicadores(){
 
   html += '<fieldset class="block"><legend>Ponto de equilíbrio — detalhamento (Ano '+y+')</legend><div class="grid g3">'+
     kpiMini('Custos fixos', fmtR$(pe.cf))+kpiMini('Custos variáveis', fmtR$(pe.cv))+kpiMini('Receita líquida', fmtR$(pe.receitaLiq))+
-    '</div></fieldset>';
+    '</div><div class="panel-note" style="margin:12px 0 0;">Este valor é o ponto de equilíbrio <b>agregado</b>, considerando o mix atual de produtos/receitas. Se você vende mais de um produto com margens muito diferentes entre si, o valor em R$ mistura as duas coisas — ele diz "quanto de receita total", não qual produto sustenta o negócio.</div></fieldset>';
 
   // Cenarios config
   html += '<fieldset class="block"><legend>Configurar cenários de sensibilidade</legend><div class="grid g4">'+
@@ -1416,15 +1466,16 @@ function renderIndicadores(){
     drow('Impostos e taxas', s=>-s.anos[y].impostos)+
     drow('Receita líquida', s=>s.anos[y].receitaLiquida)+
     drow('Custo total', s=>-s.anos[y].custos)+
+    drow('Juros do financiamento', s=>-s.anos[y].juros)+
     drow('Lucro líquido', s=>s.anos[y].lucroContabil)+
     '<tr><td class="txt">Lucratividade (%)</td>'+
       '<td>'+fmtPct(scnPess.anos[y].lucroContabil/Math.max(1,(scnPess.anos[y].receitaLiquida+scnPess.anos[y].autoconsumo)))+'</td>'+
       '<td>'+fmtPct(scn.anos[y].lucroContabil/Math.max(1,(scn.anos[y].receitaLiquida+scn.anos[y].autoconsumo)))+'</td>'+
       '<td>'+fmtPct(scnOtim.anos[y].lucroContabil/Math.max(1,(scnOtim.anos[y].receitaLiquida+scnOtim.anos[y].autoconsumo)))+'</td></tr>'+
-    '<tr><td class="txt">Renda mensal por beneficiário</td>'+
-      '<td>'+fmtR$(scnPess.anos[y].lucroContabil/12/nBenef)+'</td>'+
-      '<td>'+fmtR$(scn.anos[y].lucroContabil/12/nBenef)+'</td>'+
-      '<td>'+fmtR$(scnOtim.anos[y].lucroContabil/12/nBenef)+'</td></tr>'+
+    '<tr><td class="txt">Renda mensal por beneficiário <span style="font-weight:400;color:var(--ink-faint);">(caixa + autoconsumo)</span></td>'+
+      '<td>'+fmtR$(scnPess.anos[y].rendaFamiliar/12/nBenef)+'</td>'+
+      '<td>'+fmtR$(scn.anos[y].rendaFamiliar/12/nBenef)+'</td>'+
+      '<td>'+fmtR$(scnOtim.anos[y].rendaFamiliar/12/nBenef)+'</td></tr>'+
     '<tr class="total-row"><td class="txt">'+LABELS.vplCurto+' (VPL)</td><td>'+explainVPL(scnPess)+'</td><td>'+explainVPL(scn)+'</td><td>'+explainVPL(scnOtim)+'</td></tr>'+
     '<tr class="total-row"><td class="txt">'+LABELS.tirCurto+' (TIR)</td><td>'+explainTIR(scnPess)+'</td><td>'+explainTIR(scn)+'</td><td>'+explainTIR(scnOtim)+'</td></tr>'+
     '</tbody></table></div></fieldset>';
@@ -1473,7 +1524,7 @@ function handleClick(e){
   } else if(action==='del-inv'){
     state.investimentos = state.investimentos.filter(x=>x.id!==id);
   } else if(action==='add-fin'){
-    state.financiamentos.push({id:uid('fin'),descricao:'',saldoDevedor:0,parcelas:{1:0,2:0,3:0,4:0,5:0}});
+    state.financiamentos.push({id:uid('fin'),descricao:'',saldoDevedor:0,percJuros:25,parcelas:{1:0,2:0,3:0,4:0,5:0}});
   } else if(action==='del-fin'){
     state.financiamentos = state.financiamentos.filter(x=>x.id!==id);
   } else if(action==='add-cst'){
@@ -1711,7 +1762,7 @@ function exportPDF(){
     ['Novo investimento financiado', money(scn.inv.novoFinanciado)],
     ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.giroBase)],
     ['Depreciação anual total', money(scn.inv.deprecTotal)],
-    ['Renda mensal / beneficiário (Ano '+y5+')', money(scn.anos[y5].lucroContabil/12/Math.max(1,num(state.meta.beneficiarios)))]
+    ['Renda mensal / beneficiário (Ano '+y5+') — caixa + autoconsumo', money(scn.anos[y5].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios)))]
   ], 2);
 
   /* ---------- INVESTIMENTOS ---------- */
@@ -1740,14 +1791,18 @@ function exportPDF(){
   sectionTitle('Dívidas Ativas / Financiamentos', 'Dados inseridos');
   if(state.financiamentos.length){
     const totalPorAno={1:0,2:0,3:0,4:0,5:0};
+    const totalJurosPorAno={1:0,2:0,3:0,4:0,5:0};
     const body = state.financiamentos.map(f=>{
       let totalF=0;
-      const parcelas = YEARS.map(yy=>{ const v=num(f.parcelas[yy]); totalF+=v; totalPorAno[yy]+=v; return money(v); });
-      return [f.descricao||'—', money(f.saldoDevedor), ...parcelas, money(totalF)];
+      const pj = clamp(num(f.percJuros)/100,0,1);
+      const parcelas = YEARS.map(yy=>{ const v=num(f.parcelas[yy]); totalF+=v; totalPorAno[yy]+=v; totalJurosPorAno[yy]+=v*pj; return money(v); });
+      return [f.descricao||'—', money(f.saldoDevedor), fmtNum(f.percJuros||0,0)+'%', ...parcelas, money(totalF)];
     });
-    body.push(['Total por ano','', ...YEARS.map(yy=>money(totalPorAno[yy])), '']);
-    table(['Descrição','Saldo devedor', ...YEARS.map(yy=>'Ano '+yy), 'Total'], body,
-      {columnStyles:{0:{halign:'left',cellWidth:140}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+    body.push(['Total por ano','','', ...YEARS.map(yy=>money(totalPorAno[yy])), '']);
+    table(['Descrição','Saldo devedor','Juros na parcela', ...YEARS.map(yy=>'Ano '+yy), 'Total'], body,
+      {columnStyles:{0:{halign:'left',cellWidth:120}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+    subTitle('Total de juros embutidos nas parcelas — despesa financeira considerada no Lucro Líquido');
+    kvGrid(YEARS.map(yy=>['Ano '+yy, money(totalJurosPorAno[yy])]), 5);
   } else { note('Nenhuma dívida/financiamento lançado.'); }
 
   /* ---------- CUSTOS ---------- */
@@ -1811,8 +1866,9 @@ function exportPDF(){
     ['(–) Impostos e taxas sobre a receita', yy=>-scn.anos[yy].impostos, 0],
     ['(=) Receita líquida', yy=>scn.anos[yy].receitaLiquida, 1],
     ['(–) Custos operacionais', yy=>-scn.anos[yy].custos, 0],
-    ['(–) Parcelas de financiamento', yy=>-scn.anos[yy].financ, 0],
+    ['(–) Parcelas de financiamento (principal + juros)', yy=>-scn.anos[yy].financ, 0],
     ['(–) Reposição de investimentos', yy=>-scn.anos[yy].reposicao, 0],
+    ['(+) Recuperação do capital de giro', yy=>scn.anos[yy].recGiro, 0],
     ['(=) Fluxo de caixa líquido do ano', yy=>scn.anos[yy].fluxoCaixa, 1]
   ];
   let acc = scn.fluxo0;
@@ -1822,7 +1878,7 @@ function exportPDF(){
   table(['Item', ...YEARS.map(yy=>'Ano '+yy)], bodyFluxo,
     {columnStyles:{0:{halign:'left',cellWidth:180}},
      didParseCell:function(d){
-       const boldRows = [2,6,7];
+       const boldRows = [2,7,8];
        if(boldRows.includes(d.row.index)) d.cell.styles.fontStyle='bold';
      }});
 
@@ -1842,13 +1898,14 @@ function exportPDF(){
     drowPdf('Impostos e taxas', s=>-s.anos[y5].impostos),
     drowPdf('Receita líquida', s=>s.anos[y5].receitaLiquida),
     drowPdf('Custo total', s=>-s.anos[y5].custos),
+    drowPdf('Juros do financiamento', s=>-s.anos[y5].juros),
     drowPdf('Lucro líquido', s=>s.anos[y5].lucroContabil),
     ['Lucratividade (%)',
       fmtPct(scnPess.anos[y5].lucroContabil/Math.max(1,(scnPess.anos[y5].receitaLiquida+scnPess.anos[y5].autoconsumo))),
       fmtPct(scn.anos[y5].lucroContabil/Math.max(1,(scn.anos[y5].receitaLiquida+scn.anos[y5].autoconsumo))),
       fmtPct(scnOtim.anos[y5].lucroContabil/Math.max(1,(scnOtim.anos[y5].receitaLiquida+scnOtim.anos[y5].autoconsumo)))],
-    ['Renda mensal por beneficiário',
-      money(scnPess.anos[y5].lucroContabil/12/nBenef), money(scn.anos[y5].lucroContabil/12/nBenef), money(scnOtim.anos[y5].lucroContabil/12/nBenef)],
+    ['Renda mensal por beneficiário (caixa + autoconsumo)',
+      money(scnPess.anos[y5].rendaFamiliar/12/nBenef), money(scn.anos[y5].rendaFamiliar/12/nBenef), money(scnOtim.anos[y5].rendaFamiliar/12/nBenef)],
     [LABELS.vplCurto+' (VPL)', explainVPL(scnPess), explainVPL(scn), explainVPL(scnOtim)],
     [LABELS.tirCurto+' (TIR)', explainTIR(scnPess), explainTIR(scn), explainTIR(scnOtim)]
   ];
