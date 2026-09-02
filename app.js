@@ -1,8 +1,425 @@
+(function(){
 "use strict";
-/* ============================================================
-   SAF-PP · render.js
-   Renderização de toda a interface: abas, campos de formulário e os painéis (Ajuda, Dashboard, Projeto, Investimentos, Financiamentos, Custos, Capital de Giro, Receitas, Fluxo de Caixa, Indicadores).
-   ============================================================ */
+
+/* ============================== STATE ============================== */
+let uidN = 1;
+function uid(p){ return p + (uidN++); }
+
+const YEARS = [1,2,3,4,5];
+
+function defaultState(){
+  uidN = 1;
+  return {
+    meta:{
+      produtor:"Produtor(a) / Associação Rural",
+      local:"Sertão de Pernambuco",
+      atividade:"Ovinocultura (Ovinos)",
+      beneficiarios:1,
+      data: new Date().toISOString().slice(0,10),
+      tipoProjeto:"zero"
+    },
+    premissas:{
+      impostoReceita:3,
+      tma:10,
+      anoAnalise:5,
+      mesesGiro:3,
+      folgaTirMinima:3,
+      paybackAlerta:4
+    },
+    investimentos:[
+      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Galpão e baias",origem:"existente",quantidade:1,valorUnit:50000,vidaTotal:10,anosUso:4},
+      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Piquetes",origem:"existente",quantidade:1,valorUnit:15000,vidaTotal:15,anosUso:4},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Triturador de palma",origem:"existente",quantidade:1,valorUnit:5770,vidaTotal:8,anosUso:4},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Misturador de ração",origem:"existente",quantidade:1,valorUnit:9970,vidaTotal:8,anosUso:3},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Cerca elétrica (a adquirir)",origem:"novo_proprio",quantidade:1,valorUnit:3200,vidaTotal:10,anosUso:0}
+    ],
+    financiamentos:[
+      {id:uid('fin'),descricao:"Pronaf — parcelas em andamento (trator)",saldoDevedor:8000,percJuros:25,parcelas:{1:2000,2:2000,3:2000,4:2000,5:0}}
+    ],
+    custos:[
+      {id:uid('cst'),descricao:"Ração / suplementação (palma, milho)",tipo:"Variável",valores:{1:9000,2:9200,3:9400,4:9600,5:9800}},
+      {id:uid('cst'),descricao:"Sanidade animal (vacinas, vermífugos)",tipo:"Variável",valores:{1:1800,2:1800,3:1900,4:1900,5:2000}},
+      {id:uid('cst'),descricao:"Mão de obra contratada",tipo:"Fixo",valores:{1:6000,2:6000,3:6300,4:6300,5:6600}},
+      {id:uid('cst'),descricao:"Energia e combustível",tipo:"Fixo",valores:{1:2400,2:2400,3:2500,4:2500,5:2600}}
+    ],
+    capitalGiro:{modo:"auto",valorManual:0},
+    receitas:[
+      {id:uid('rec'),produto:"Animal vivo (venda)",unidade:"Und.",percAutoconsumo:0,
+        quantidades:{1:60,2:60,3:62,4:62,5:65}, precos:{1:500,2:510,3:510,4:520,5:520}},
+      {id:uid('rec'),produto:"Animais para genética",unidade:"Und.",percAutoconsumo:0,
+        quantidades:{1:20,2:20,3:20,4:20,5:22}, precos:{1:5000,2:5000,3:5100,4:5100,5:5200}}
+    ],
+    cenarios:{ otimistaReceita:10, otimistaCusto:10, pessimistaReceita:10, pessimistaCusto:10 }
+  };
+}
+
+let state = defaultState();
+let activeTab = "dashboard";
+
+/* ============================== STORAGE ==============================
+   Camada dupla: tenta primeiro o armazenamento do ambiente Claude (window.storage),
+   e se não existir (ex: publicado no Cloudflare Pages, ou qualquer site fora do Claude)
+   usa localStorage do navegador. Assim o mesmo arquivo funciona nos dois lugares. */
+const STORE_KEY = "safpp:v1:data";
+let saveTimer = null;
+
+function hasClaudeStorage(){
+  return typeof window!=='undefined' && window.storage && typeof window.storage.set==='function';
+}
+
+async function storageSet(key, value){
+  if(hasClaudeStorage()){
+    try{
+      const res = await window.storage.set(key, value, false);
+      if(res) return true;
+    }catch(e){ /* cai para localStorage abaixo */ }
+  }
+  try{ localStorage.setItem(key, value); return true; }
+  catch(e){ console.error('Não foi possível salvar (localStorage indisponível)', e); return false; }
+}
+
+async function storageGet(key){
+  if(hasClaudeStorage()){
+    try{
+      const res = await window.storage.get(key, false);
+      if(res && res.value) return res.value;
+    }catch(e){ /* chave não existe nesse modo, tenta localStorage */ }
+  }
+  try{ return localStorage.getItem(key); }
+  catch(e){ return null; }
+}
+
+function markSaving(){ const d=document.getElementById('saveDot'); const l=document.getElementById('saveLabel'); if(d){d.classList.add('busy'); l.textContent='salvando...';} }
+function markSaved(ok){ const d=document.getElementById('saveDot'); const l=document.getElementById('saveLabel');
+  if(d){ d.classList.remove('busy'); l.textContent= ok? 'dados salvos neste dispositivo' : 'não foi possível salvar — dados só nesta sessão'; }
+}
+function scheduleSave(){
+  markSaving();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    const ok = await storageSet(STORE_KEY, JSON.stringify(state));
+    markSaved(ok);
+  }, 500);
+}
+async function loadState(){
+  try{
+    const raw = await storageGet(STORE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = parsed;
+      uidN = 9999; // mantém contador de ids seguro
+      markSaved(true);
+      return true;
+    }
+  }catch(e){ console.error('Falha ao carregar dados salvos', e); }
+  markSaved(false);
+  return false;
+}
+
+/* ============================== HELPERS ============================== */
+function fmtR$(n){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+}
+function fmtR$2(n){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:2});
+}
+function fmtPct(n,dec){
+  if(!isFinite(n)) return "—";
+  return (n*100).toLocaleString('pt-BR',{maximumFractionDigits:dec==null?1:dec})+"%";
+}
+function fmtNum(n,dec){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString('pt-BR',{maximumFractionDigits:dec==null?2:dec});
+}
+function num(v){ const n=parseFloat(v); return isFinite(n)?n:0; }
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+function findById(arr,id){ return arr.find(x=>x.id===id); }
+
+/* ============================== CALC ENGINE ============================== */
+function itemVidaRestante(it){
+  if(it.origem==='existente'){
+    const r = num(it.vidaTotal) - num(it.anosUso);
+    return r>0 ? r : 1;
+  }
+  return num(it.vidaTotal)>0 ? num(it.vidaTotal) : 1;
+}
+function itemValorTotal(it){ return num(it.quantidade)*num(it.valorUnit); }
+function itemDeprecAnual(it){ return itemValorTotal(it)/itemVidaRestante(it); }
+
+function calcInvestimentos(){
+  let novoProprio=0, novoFinanciado=0, patrimonioExistente=0, deprecTotal=0;
+  const reposicoes = {1:0,2:0,3:0,4:0,5:0};
+  state.investimentos.forEach(it=>{
+    const total = itemValorTotal(it);
+    const vr = itemVidaRestante(it);
+    deprecTotal += itemDeprecAnual(it);
+    if(it.origem==='novo_proprio') novoProprio += total;
+    else if(it.origem==='novo_financiado') novoFinanciado += total;
+    else patrimonioExistente += total;
+    if(vr>=1 && vr<=5){ reposicoes[Math.round(vr)] += total; }
+  });
+  return {novoProprio, novoFinanciado, patrimonioExistente, deprecTotal, reposicoes};
+}
+
+function calcCapitalGiro(custoAno1Total){
+  if(state.capitalGiro.modo==='manual') return num(state.capitalGiro.valorManual);
+  return (custoAno1Total/12) * num(state.premissas.mesesGiro||3);
+}
+
+function calcCustosPorAno(){
+  const out={1:0,2:0,3:0,4:0,5:0};
+  const fixo={1:0,2:0,3:0,4:0,5:0};
+  const variavel={1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{
+    YEARS.forEach(y=>{
+      const v = num(c.valores[y]);
+      out[y]+=v;
+      if(c.tipo==='Fixo') fixo[y]+=v; else variavel[y]+=v;
+    });
+  });
+  return {total:out, fixo, variavel};
+}
+
+function calcFinanciamentosPorAno(){
+  // "parcelas" é o valor total pago (amortização + juros) que sai do caixa.
+  // "percJuros" é o % da parcela que corresponde a juros (despesa financeira real);
+  // o restante é amortização de principal, que reduz dívida mas não é despesa contábil.
+  const parcelas={1:0,2:0,3:0,4:0,5:0};
+  const juros={1:0,2:0,3:0,4:0,5:0};
+  state.financiamentos.forEach(f=>{
+    const pj = clamp(num(f.percJuros)/100,0,1);
+    YEARS.forEach(y=>{
+      const p = num(f.parcelas[y]);
+      parcelas[y]+= p;
+      juros[y]+= p*pj;
+    });
+  });
+  return {parcelas, juros};
+}
+
+function calcReceitasPorAno(mult){
+  mult = mult || {receita:1, custo:1};
+  const brutaComerc={1:0,2:0,3:0,4:0,5:0};
+  const autoconsumo={1:0,2:0,3:0,4:0,5:0};
+  state.receitas.forEach(r=>{
+    YEARS.forEach(y=>{
+      const q = num(r.quantidades[y]);
+      const p = num(r.precos[y]) * mult.receita;
+      const perc = clamp(num(r.percAutoconsumo)/100,0,1);
+      const totalY = q*p;
+      autoconsumo[y]+= totalY*perc;
+      brutaComerc[y]+= totalY*(1-perc);
+    });
+  });
+  return {brutaComerc, autoconsumo};
+}
+
+function buildScenario(mult){
+  mult = mult || {receita:1, custo:1};
+  const {total:custoTotal} = calcCustosPorAno();
+  const {brutaComerc, autoconsumo} = calcReceitasPorAno(mult);
+  const {parcelas:financ, juros:financJuros} = calcFinanciamentosPorAno();
+  const inv = calcInvestimentos();
+  const andamento = isAndamento();
+  // Projeto "em andamento": não há novo aporte de investimento nem exigência
+  // de capital de giro no Ano 0 — considera-se que a estrutura já está de pé.
+  const giroBase = andamento ? 0 : calcCapitalGiro(custoTotal[1]);
+  const novoProprioAno0 = andamento ? 0 : inv.novoProprio;
+  const ultimoAno = YEARS[YEARS.length-1];
+
+  const impostoTx = clamp(num(state.premissas.impostoReceita)/100,0,1);
+
+  const anos = {};
+  YEARS.forEach(y=>{
+    const custosY = custoTotal[y]*mult.custo;
+    const impostos = brutaComerc[y]*impostoTx;
+    const receitaLiquida = brutaComerc[y]-impostos;
+    const financY = financ[y];
+    const jurosY = financJuros[y];
+    const reposY = inv.reposicoes[y]||0;
+    // Recuperação do capital de giro: o capital de giro imobilizado no Ano 0
+    // não é uma perda — ele volta a ficar disponível ao final do horizonte
+    // analisado. Sem essa recuperação o VPL fica sistematicamente subestimado.
+    const recGiroY = (y===ultimoAno && !andamento) ? giroBase : 0;
+    const fluxoCaixa = receitaLiquida - custosY - financY - reposY + recGiroY;
+    // Lucro contábil desconta apenas a parcela de JUROS do financiamento (despesa
+    // financeira real), não a amortização de principal (que é devolução de capital,
+    // não despesa) — e desconta depreciação (custo contábil não-caixa).
+    const lucroContabil = receitaLiquida + autoconsumo[y] - custosY - jurosY - inv.deprecTotal;
+    // "Renda familiar disponível": base de caixa (não contábil), pensada para medir
+    // o que efetivamente fica disponível para a família — soma o valor do
+    // autoconsumo (bem-estar/segurança alimentar, mesmo não sendo caixa) ao fluxo
+    // de caixa do ano (que já desconta parcela cheia, custos e reposições reais).
+    const rendaFamiliar = fluxoCaixa + autoconsumo[y];
+    anos[y] = {
+      brutaComerc:brutaComerc[y], autoconsumo:autoconsumo[y], impostos, receitaLiquida,
+      custos:custosY, financ:financY, juros:jurosY, reposicao:reposY, recGiro:recGiroY,
+      fluxoCaixa, lucroContabil, rendaFamiliar
+    };
+  });
+
+  const fluxo0 = -(novoProprioAno0) - giroBase;
+  const cashflows = [fluxo0, anos[1].fluxoCaixa, anos[2].fluxoCaixa, anos[3].fluxoCaixa, anos[4].fluxoCaixa, anos[5].fluxoCaixa];
+
+  const tma = num(state.premissas.tma)/100;
+  const vpl = npv(cashflows, tma);
+  const tir = irr(cashflows);
+  const payback = paybackSimples(cashflows);
+
+  return {anos, fluxo0, cashflows, vpl, tir, payback, inv, giroBase, novoProprioAno0, custoTotal, andamento};
+}
+
+function npv(cfs, rate){
+  return cfs.reduce((acc,cf,t)=> acc + cf/Math.pow(1+rate,t), 0);
+}
+function irr(cfs){
+  // Se todos os fluxos forem (numericamente) zero, não há TIR — evita
+  // que a bisseção devolva o ponto médio do intervalo de busca (ex.: 452,5%).
+  if(cfs.every(v => Math.abs(v) < 0.005)) return null;
+
+  // bisection search for sign change of NPV(rate)
+  function f(r){ return npv(cfs,r); }
+  let lo=-0.95, hi=60, flo=f(lo), fhi=f(hi);
+  if(!isFinite(flo)||!isFinite(fhi)) return null;
+  if(flo*fhi>0){
+    // try scanning for a bracket (faixas maiores no início, mais largas depois)
+    let found=false;
+    let prevR=lo, prevF=flo;
+    for(let r=-0.9;r<=60;r+=(r<5?0.05:0.5)){
+      const fr=f(r);
+      if(prevF*fr<=0){ lo=prevR; hi=r; flo=prevF; fhi=fr; found=true; break; }
+      prevR=r; prevF=fr;
+    }
+    if(!found) return null;
+  }
+  for(let i=0;i<200;i++){
+    const mid=(lo+hi)/2, fmid=f(mid);
+    if(Math.abs(fmid)<0.5) return mid;
+    if(flo*fmid<0){ hi=mid; fhi=fmid; } else { lo=mid; flo=fmid; }
+  }
+  return (lo+hi)/2;
+}
+function paybackSimples(cfs){
+  let acc=cfs[0];
+  if(acc>=0) return 0;
+  for(let t=1;t<cfs.length;t++){
+    const prev=acc;
+    acc+=cfs[t];
+    if(acc>=0){
+      const frac = cfs[t]!==0 ? (-prev)/cfs[t] : 0;
+      return (t-1)+frac;
+    }
+  }
+  return null;
+}
+
+function pontoEquilibrio(scn){
+  const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
+  const custosFixo = {1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{ if(c.tipo==='Fixo') YEARS.forEach(yy=> custosFixo[yy]+=num(c.valores[yy])); });
+  const custosVar = {1:0,2:0,3:0,4:0,5:0};
+  state.custos.forEach(c=>{ if(c.tipo!=='Fixo') YEARS.forEach(yy=> custosVar[yy]+=num(c.valores[yy])); });
+  const receitaLiq = scn.anos[y].receitaLiquida;
+  const cf = custosFixo[y], cv = custosVar[y];
+  if(receitaLiq<=0) return {valor:null, cf, cv, receitaLiq};
+  const margem = 1 - (cv/receitaLiq);
+  if(margem<=0) return {valor:null, cf, cv, receitaLiq};
+  return {valor: cf/margem, cf, cv, receitaLiq, margem};
+}
+
+/* ============================== LINGUAGEM ACESSÍVEL ============================== */
+// Termos amigáveis para substituir jargões financeiros no sistema e nos relatórios.
+// O termo técnico (sigla) é sempre mantido entre parênteses, para quem já o conhece.
+const LABELS = {
+  tmaCurto: 'Rendimento mínimo desejado',
+  tmaCompleto: 'Rendimento mínimo desejado (ex.: a taxa que o banco pagaria) — TMA',
+  vplCurto: 'Lucro real acumulado no período',
+  vplCompleto: 'Lucro real acumulado no período (VPL)',
+  tirCurto: 'Rentabilidade anual do negócio',
+  tirCompleto: 'Rentabilidade anual do negócio (TIR)',
+  paybackCurto: 'Tempo para recuperar o dinheiro investido',
+  paybackCompleto: 'Tempo para recuperar o dinheiro investido (Payback)'
+};
+
+function isAndamento(){ return !!(state.meta && state.meta.tipoProjeto === 'andamento'); }
+
+/* Mensagens amigáveis nos casos em que os índices não convergem matematicamente,
+   em vez de mostrar termos técnicos como "não converge" ou "NaN". */
+function explainVPL(scn){
+  if(scn.vpl!=null && isFinite(scn.vpl)) return fmtR$(scn.vpl);
+  return 'Não foi possível calcular — confira os valores lançados';
+}
+function explainTIR(scn){
+  if(scn.tir!=null && isFinite(scn.tir)) return fmtPct(scn.tir,1);
+  if(scn.fluxo0>=0){
+    return 'Não se aplica — o projeto não exige aporte inicial para gerar lucro';
+  }
+  if(scn.cashflows.slice(1).every(v=>v<=0)){
+    return 'Não se aplica — o projeto não gera retorno de caixa nos anos simulados';
+  }
+  if(scn.vpl!=null && scn.vpl>0 && scn.payback!=null && scn.payback<0.5){
+    return 'Extremamente alta — o investimento se paga em poucos meses, acima da nossa escala de cálculo';
+  }
+  return 'Não foi possível calcular — confira os valores lançados';
+}
+function explainPayback(scn){
+  if(scn.payback!=null && isFinite(scn.payback)) return fmtNum(scn.payback,2)+' anos';
+  if(scn.fluxo0>=0){
+    return 'Imediato — não há investimento inicial a recuperar';
+  }
+  return 'Não recupera o investimento dentro de 5 anos';
+}
+
+/* ---------- Semáforo de viabilidade ---------- */
+function calcSemaforo(scn){
+  const tma = num(state.premissas.tma)/100;
+  const folgaMinimaPP = num(state.premissas.folgaTirMinima!=null? state.premissas.folgaTirMinima : 3);
+  const paybackLimite = num(state.premissas.paybackAlerta!=null? state.premissas.paybackAlerta : 4);
+  if(scn.vpl==null || !isFinite(scn.vpl)){
+    return {cor:'cinza', titulo:'Sem dados suficientes',
+      msg:'Lance os investimentos, custos e receitas do projeto para calcular a viabilidade.'};
+  }
+  if(scn.vpl < 0){
+    return {cor:'vermelho', titulo:'Inviável nas condições atuais',
+      msg:'O projeto não cobre o '+LABELS.tmaCurto.toLowerCase()+'. Reveja preços, custos ou o valor do investimento antes de seguir em frente.'};
+  }
+  // VPL positivo — checa a rentabilidade anual (TIR), quando existir
+  if(scn.tir!=null && isFinite(scn.tir)){
+    if(scn.tir < tma){
+      return {cor:'vermelho', titulo:'Inviável nas condições atuais',
+        msg:'A '+LABELS.tirCurto.toLowerCase()+' ficou abaixo do rendimento mínimo desejado.'};
+    }
+    const folgaPP = (scn.tir - tma) * 100;
+    const paybackApertado = scn.payback!=null && scn.payback > paybackLimite;
+    if(folgaPP < folgaMinimaPP || paybackApertado){
+      return {cor:'amarelo', titulo:'Viável, mas com margem apertada',
+        msg:'O projeto compensa, porém com folga pequena. Quedas de preço ou aumento de custos podem inviabilizá-lo — vale ter um plano de contingência.'};
+    }
+    return {cor:'verde', titulo:'Projeto viável',
+      msg:'O projeto supera o rendimento mínimo desejado com boa margem de segurança.'};
+  }
+  // TIR não definida (ex.: sem aporte inicial a recuperar, ou retorno tão rápido
+  // que ultrapassa a escala numérica de busca da TIR)
+  if(scn.fluxo0>=0){
+    return {cor:'verde', titulo:'Projeto viável',
+      msg:'O projeto não exige aporte inicial relevante e já apresenta lucro nos anos simulados.'};
+  }
+  if(scn.payback!=null && scn.payback<0.5){
+    return {cor:'verde', titulo:'Projeto viável',
+      msg:'O investimento se paga em poucos meses e a rentabilidade anual é tão alta que ultrapassa nossa escala de cálculo — sinal de retorno muito favorável.'};
+  }
+  return {cor:'amarelo', titulo:'Atenção',
+    msg:'Não foi possível calcular a rentabilidade anual com precisão. Revise os valores lançados nas abas anteriores.'};
+}
+function renderSemaforo(scn){
+  const s = calcSemaforo(scn);
+  const ordem = ['vermelho','amarelo','verde'];
+  const luzes = ordem.map(c=>'<span class="luz '+(c===s.cor?'on-'+c:'')+'"></span>').join('');
+  return '<div class="semaforo cor-'+s.cor+'"><div class="luzes">'+luzes+'</div>'+
+    '<div class="txt"><h4>'+s.titulo+'</h4><p>'+s.msg+'</p></div></div>';
+}
 
 /* ============================== FOCUS-PRESERVING RENDER ============================== */
 function captureFocus(){
@@ -715,3 +1132,566 @@ function renderAll(){
   restoreFocus(focus);
 }
 
+/* ============================== EVENT DELEGATION ============================== */
+function handleInput(e){
+  const t = e.target;
+  if(!t.dataset || !t.dataset.bind) return;
+  const bind = t.dataset.bind;
+  let value = t.value;
+  if(t.type==='number') value = value===''? 0 : parseFloat(value);
+  try{ setPath(state, bind, value); }catch(err){ console.error('bind error', bind, err); return; }
+  scheduleSave();
+  requestRender();
+}
+
+function handleClick(e){
+  const btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if(action==='add-inv'){
+    state.investimentos.push({id:uid('inv'),categoria:CATEGORIAS[2],descricao:'',origem:'novo_proprio',quantidade:1,valorUnit:0,vidaTotal:10,anosUso:0});
+  } else if(action==='del-inv'){
+    state.investimentos = state.investimentos.filter(x=>x.id!==id);
+  } else if(action==='add-fin'){
+    state.financiamentos.push({id:uid('fin'),descricao:'',saldoDevedor:0,percJuros:25,parcelas:{1:0,2:0,3:0,4:0,5:0}});
+  } else if(action==='del-fin'){
+    state.financiamentos = state.financiamentos.filter(x=>x.id!==id);
+  } else if(action==='add-cst'){
+    state.custos.push({id:uid('cst'),descricao:'',tipo:'Variável',valores:{1:0,2:0,3:0,4:0,5:0}});
+  } else if(action==='del-cst'){
+    state.custos = state.custos.filter(x=>x.id!==id);
+  } else if(action==='repeat-cst'){
+    const c = getArrById('custos', id);
+    if(c){ const v1=num(c.valores[1]); YEARS.forEach(y=> c.valores[y]=v1); }
+  } else if(action==='add-rec'){
+    state.receitas.push({id:uid('rec'),produto:'Novo produto',unidade:'Und.',percAutoconsumo:0,quantidades:{1:0,2:0,3:0,4:0,5:0},precos:{1:0,2:0,3:0,4:0,5:0}});
+  } else if(action==='del-rec'){
+    state.receitas = state.receitas.filter(x=>x.id!==id);
+  } else if(action==='set-tipo-projeto'){
+    state.meta.tipoProjeto = btn.dataset.val;
+  } else { return; }
+  scheduleSave();
+  renderAll();
+}
+
+function handleChange(e){
+  const t = e.target;
+  if(!t.dataset || !t.dataset.bind) return;
+  if(t.tagName==='SELECT'){
+    handleInput(e);
+    renderAll(); // selects can change layout (e.g., origem novo/existente, giro modo)
+    return;
+  }
+  // Ao sair do campo (blur / Enter), respeita os limites min/max do input —
+  // evita salvar percentuais >100%, quantidades negativas etc. Feito só no
+  // "change" (não a cada tecla) para não atrapalhar a digitação.
+  if(t.type==='number'){
+    let value = t.value===''? 0 : parseFloat(t.value);
+    if(!isFinite(value)) value = 0;
+    const min = t.getAttribute('min');
+    const max = t.getAttribute('max');
+    if(min!==null && value < parseFloat(min)) value = parseFloat(min);
+    if(max!==null && value > parseFloat(max)) value = parseFloat(max);
+    try{ setPath(state, t.dataset.bind, value); }catch(err){ console.error('bind error', t.dataset.bind, err); return; }
+    scheduleSave();
+    renderAll();
+  }
+}
+
+/* ---------- Modal de confirmação próprio (substitui window.confirm) ---------- */
+function showConfirm(message, onConfirm){
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML =
+    '<div class="confirm-box"><p>'+message+'</p>'+
+    '<div class="confirm-actions">'+
+      '<button class="btn" data-role="cancel">Cancelar</button>'+
+      '<button class="btn danger" data-role="ok">Confirmar</button>'+
+    '</div></div>';
+  document.body.appendChild(overlay);
+  function close(){ overlay.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e){ if(e.key==='Escape') close(); }
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('[data-role="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-role="ok"]').addEventListener('click', ()=>{ close(); onConfirm(); });
+  overlay.querySelector('[data-role="ok"]').focus();
+}
+
+function showToast(msg, action){
+  const t = document.createElement('div');
+  t.className='toast';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  t.appendChild(span);
+  let timer;
+  if(action && action.label && typeof action.onClick==='function'){
+    const btn = document.createElement('button');
+    btn.className = 'toast-undo';
+    btn.type = 'button';
+    btn.textContent = action.label;
+    btn.addEventListener('click', ()=>{
+      clearTimeout(timer);
+      action.onClick();
+      t.classList.remove('show'); setTimeout(()=> t.remove(), 250);
+    });
+    t.appendChild(btn);
+  }
+  document.body.appendChild(t);
+  requestAnimationFrame(()=> t.classList.add('show'));
+  const duration = action? 6000 : 2200;
+  timer = setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=> t.remove(), 250); }, duration);
+}
+
+/* ============================== EXPORTAÇÃO EM PDF ============================== */
+function exportPDF(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    showToast('Biblioteca de PDF ainda carregando — tente novamente em alguns segundos.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 40;
+  const marginBottom = 46;
+  let y = 46;
+
+  const C_INK    = [42,32,22];
+  const C_SOFT   = [91,76,56];
+  const C_FAINT  = [140,122,94];
+  const C_GREEN  = [63,90,50];
+  const C_GREEND = [44,64,33];
+  const C_OCHRE  = [180,121,30];
+  const C_BRICK  = [138,58,43];
+  const C_PAPER2 = [222,203,160];
+  const C_CARD   = [247,241,222];
+  const C_LINE   = [205,187,140];
+
+  const scn = buildScenario();
+  const y5 = clamp(num(state.premissas.anoAnalise)||5,1,5);
+  const pe = pontoEquilibrio(scn);
+  const scnOtim = buildScenario({receita: 1+num(state.cenarios.otimistaReceita)/100, custo: 1-num(state.cenarios.otimistaCusto)/100});
+  const scnPess = buildScenario({receita: 1-num(state.cenarios.pessimistaReceita)/100, custo: 1+num(state.cenarios.pessimistaCusto)/100});
+
+  function ensureSpace(h){
+    if(y + h > pageH - marginBottom){ doc.addPage(); y = 46; }
+  }
+  function sectionTitle(txt, eyebrow){
+    ensureSpace(34);
+    if(eyebrow){
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_OCHRE);
+      doc.text(eyebrow.toUpperCase(), marginX, y);
+      y += 12;
+    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...C_GREEND);
+    doc.text(txt, marginX, y);
+    y += 6;
+    doc.setDrawColor(...C_LINE); doc.setLineWidth(1);
+    doc.line(marginX, y, pageW-marginX, y);
+    y += 16;
+    doc.setTextColor(...C_INK);
+  }
+  function subTitle(txt){
+    ensureSpace(18);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...C_GREEN);
+    doc.text(txt, marginX, y);
+    y += 14;
+    doc.setTextColor(...C_INK);
+  }
+  function note(txt){
+    ensureSpace(24);
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...C_SOFT);
+    const lines = doc.splitTextToSize(txt, pageW-2*marginX);
+    doc.text(lines, marginX, y);
+    y += lines.length*11 + 8;
+    doc.setTextColor(...C_INK);
+  }
+  function kvGrid(pairs, cols){
+    cols = cols||2;
+    const colW = (pageW-2*marginX)/cols;
+    ensureSpace(Math.ceil(pairs.length/cols)*16+6);
+    doc.setFontSize(9);
+    pairs.forEach((p,i)=>{
+      const col = i%cols, row = Math.floor(i/cols);
+      const x = marginX + col*colW;
+      const yy = y + row*16;
+      doc.setFont('helvetica','bold'); doc.setTextColor(...C_SOFT);
+      doc.text(p[0]+':', x, yy);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...C_INK);
+      doc.text(String(p[1]), x+ Math.min(150,colW*0.55), yy);
+    });
+    y += Math.ceil(pairs.length/cols)*16 + 10;
+  }
+  function kpiRow(items){
+    const cols = items.length;
+    const gap = 8;
+    const w = (pageW-2*marginX-gap*(cols-1))/cols;
+    const h = 46;
+    ensureSpace(h+10);
+    items.forEach((it,i)=>{
+      const x = marginX + i*(w+gap);
+      doc.setDrawColor(...C_LINE); doc.setFillColor(...C_CARD);
+      doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...C_SOFT);
+      const lbl = doc.splitTextToSize(it[0].toUpperCase(), w-10);
+      doc.text(lbl, x+7, y+12);
+      doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+      doc.setTextColor(...(it[2]? C_BRICK : C_GREEND));
+      doc.text(String(it[1]), x+7, y+h-10);
+    });
+    y += h + 14;
+  }
+  function table(head, body, opts){
+    opts = opts||{};
+    doc.autoTable(Object.assign({
+      startY: y,
+      margin:{left:marginX, right:marginX, bottom:marginBottom},
+      head:[head],
+      body: body,
+      theme:'grid',
+      styles:{font:'helvetica', fontSize:8, textColor:C_INK, lineColor:C_LINE, lineWidth:0.5, cellPadding:4},
+      headStyles:{fillColor:C_PAPER2, textColor:C_INK, fontStyle:'bold', halign:'center', fontSize:7.6},
+      alternateRowStyles:{fillColor:[250,246,233]},
+      didDrawPage:function(){ /* footers added manually at end */ }
+    }, opts));
+    y = doc.lastAutoTable.finalY + 16;
+  }
+  const money = v => fmtR$(v);
+
+  /* ---------- CAPA ---------- */
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_OCHRE);
+  doc.text('CADERNO DE CAMPO DIGITAL — ADAPTADO DO SAF-PP (MELONI, 2017)', marginX, y);
+  y += 22;
+  doc.setFont('helvetica','bold'); doc.setFontSize(19); doc.setTextColor(...C_INK);
+  doc.text('Análise Financeira do Empreendimento Rural', marginX, y);
+  y += 22;
+  doc.setDrawColor(...C_INK); doc.setLineWidth(1.4);
+  doc.line(marginX, y, pageW-marginX, y);
+  y += 22;
+
+  kvGrid([
+    ['Produtor(a) / Associação', state.meta.produtor||'—'],
+    ['Localização', state.meta.local||'—'],
+    ['Atividade principal', state.meta.atividade||'—'],
+    ['Nº de beneficiários(as)', String(num(state.meta.beneficiarios)||1)],
+    ['Data de preenchimento', state.meta.data||'—'],
+    ['Relatório gerado em', new Date().toLocaleString('pt-BR')]
+  ], 2);
+
+  const semaf = calcSemaforo(scn);
+  const semafColor = semaf.cor==='verde'?C_GREEND : semaf.cor==='amarelo'?C_OCHRE : semaf.cor==='vermelho'?C_BRICK : C_FAINT;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.setTextColor(...semafColor);
+  doc.text('◆ '+semaf.titulo.toUpperCase(), marginX, y);
+  y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C_SOFT);
+  const semafLines = doc.splitTextToSize(semaf.msg, pageW-2*marginX);
+  doc.text(semafLines, marginX, y);
+  y += semafLines.length*11 + 6;
+  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...C_FAINT);
+  doc.text(isAndamento()?'Tipo de projeto: Em Andamento (sem novo investimento inicial nem capital de giro no Ano 0)':'Tipo de projeto: Do Zero (com investimento inicial e capital de giro no Ano 0)', marginX, y);
+  y += 16;
+  doc.setTextColor(...C_INK);
+
+  /* ---------- PREMISSAS ---------- */
+  sectionTitle('Premissas Financeiras', 'Dados inseridos');
+  kvGrid([
+    ['Impostos/taxas sobre a receita', fmtNum(state.premissas.impostoReceita,1)+'%'],
+    [LABELS.tmaCurto+' (TMA)', fmtNum(state.premissas.tma,1)+'% a.a.'],
+    ['Ano de análise dos indicadores', 'Ano '+y5],
+    ['Meses de custo p/ Capital de Giro', isAndamento()?'Não aplicável (projeto em andamento)':String(state.premissas.mesesGiro)+' meses']
+  ], 2);
+
+  /* ---------- RESULTADOS — INDICADORES ---------- */
+  sectionTitle('Indicadores de Viabilidade', 'Resultados obtidos — cenário realista');
+  kpiRow([
+    [LABELS.vplCurto+' (VPL) — ao '+fmtNum(state.premissas.tma,1)+'%', explainVPL(scn), scn.vpl!=null&&scn.vpl<0],
+    [LABELS.tirCurto+' (TIR)', explainTIR(scn), scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
+    [LABELS.paybackCurto+' (Payback)', explainPayback(scn), scn.payback==null&&scn.fluxo0<0],
+    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?money(pe.valor):'Não se aplica', pe.valor==null]
+  ]);
+  subTitle('Ponto de equilíbrio — detalhamento (Ano '+y5+')');
+  kvGrid([
+    ['Custos fixos', money(pe.cf)],
+    ['Custos variáveis', money(pe.cv)],
+    ['Receita líquida', money(pe.receitaLiq)]
+  ], 3);
+  subTitle('Como o projeto está montado');
+  kvGrid([
+    ['Patrimônio já existente (sem novo desembolso)', money(scn.inv.patrimonioExistente)],
+    ['Novo investimento — recursos próprios (Ano 0)', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.novoProprioAno0)],
+    ['Novo investimento financiado', money(scn.inv.novoFinanciado)],
+    ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.giroBase)],
+    ['Depreciação anual total', money(scn.inv.deprecTotal)],
+    ['Renda mensal / beneficiário (Ano '+y5+') — caixa + autoconsumo', money(scn.anos[y5].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios)))]
+  ], 2);
+
+  /* ---------- INVESTIMENTOS ---------- */
+  sectionTitle('Investimentos', 'Dados inseridos');
+  if(state.investimentos.length){
+    let tNP=0,tNF=0,tEx=0,tDep=0;
+    const body = state.investimentos.map(it=>{
+      const total=itemValorTotal(it), vr=itemVidaRestante(it), dep=itemDeprecAnual(it);
+      if(it.origem==='novo_proprio') tNP+=total; else if(it.origem==='novo_financiado') tNF+=total; else tEx+=total;
+      tDep+=dep;
+      const origemL = it.origem==='novo_proprio'?'Novo — próprio':it.origem==='novo_financiado'?'Novo — financiado':'Já existente';
+      return [it.descricao||'—', it.categoria, origemL, fmtNum(it.quantidade,0), money(it.valorUnit), money(total), fmtNum(vr,1)+' anos', money(dep)];
+    });
+    body.push(['Totais','','','','', money(tNP+tNF+tEx),'', money(tDep)]);
+    table(['Descrição','Categoria','Origem','Qtd.','Valor unit.','Total','Vida útil restante','Deprec. anual'], body,
+      {columnStyles:{0:{halign:'left',cellWidth:100},2:{halign:'left'}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+    kvGrid([
+      ['Novo — recursos próprios', money(tNP)],
+      ['Novo — financiado', money(tNF)],
+      ['Patrimônio já existente', money(tEx)],
+      ['Depreciação anual total', money(tDep)]
+    ], 4);
+  } else { note('Nenhum investimento lançado.'); }
+
+  /* ---------- FINANCIAMENTOS ---------- */
+  sectionTitle('Dívidas Ativas / Financiamentos', 'Dados inseridos');
+  if(state.financiamentos.length){
+    const totalPorAno={1:0,2:0,3:0,4:0,5:0};
+    const totalJurosPorAno={1:0,2:0,3:0,4:0,5:0};
+    const body = state.financiamentos.map(f=>{
+      let totalF=0;
+      const pj = clamp(num(f.percJuros)/100,0,1);
+      const parcelas = YEARS.map(yy=>{ const v=num(f.parcelas[yy]); totalF+=v; totalPorAno[yy]+=v; totalJurosPorAno[yy]+=v*pj; return money(v); });
+      return [f.descricao||'—', money(f.saldoDevedor), fmtNum(f.percJuros||0,0)+'%', ...parcelas, money(totalF)];
+    });
+    body.push(['Total por ano','','', ...YEARS.map(yy=>money(totalPorAno[yy])), '']);
+    table(['Descrição','Saldo devedor','Juros na parcela', ...YEARS.map(yy=>'Ano '+yy), 'Total'], body,
+      {columnStyles:{0:{halign:'left',cellWidth:120}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+    subTitle('Total de juros embutidos nas parcelas — despesa financeira considerada no Lucro Líquido');
+    kvGrid(YEARS.map(yy=>['Ano '+yy, money(totalJurosPorAno[yy])]), 5);
+  } else { note('Nenhuma dívida/financiamento lançado.'); }
+
+  /* ---------- CUSTOS ---------- */
+  sectionTitle('Custos Operacionais', 'Dados inseridos');
+  if(state.custos.length){
+    const totalPorAno={1:0,2:0,3:0,4:0,5:0};
+    const body = state.custos.map(c=>{
+      const vals = YEARS.map(yy=>{ const v=num(c.valores[yy]); totalPorAno[yy]+=v; return money(v); });
+      return [c.descricao||'—', c.tipo, ...vals];
+    });
+    body.push(['Total por ano','', ...YEARS.map(yy=>money(totalPorAno[yy]))]);
+    table(['Descrição','Tipo', ...YEARS.map(yy=>'Ano '+yy)], body,
+      {columnStyles:{0:{halign:'left',cellWidth:150}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+  } else { note('Nenhum custo lançado.'); }
+
+  /* ---------- CAPITAL DE GIRO ---------- */
+  sectionTitle('Capital de Giro', 'Dados inseridos e resultado');
+  if(isAndamento()){
+    note('Não aplicável — Projeto em Andamento. Como a atividade já está em funcionamento, o sistema não exige capital de giro inicial no Ano 0.');
+  } else {
+    const {total:custoTotalAno} = calcCustosPorAno();
+    const giroAuto = calcCapitalGiro(custoTotalAno[1]);
+    kvGrid([
+      ['Modo de cálculo', state.capitalGiro.modo==='manual'?'Valor manual':'Automático'],
+      ['Custo operacional mensal (Ano 1)', money(custoTotalAno[1]/12)],
+      ['Meses de cobertura', state.premissas.mesesGiro+' meses'],
+      ['Capital de giro considerado', money(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):giroAuto)]
+    ], 2);
+  }
+
+  /* ---------- RECEITAS ---------- */
+  sectionTitle('Receitas Projetadas', 'Dados inseridos');
+  if(state.receitas.length){
+    state.receitas.forEach(r=>{
+      subTitle((r.produto||'Produto')+'  ·  '+(r.unidade||'')+'  ·  autoconsumo: '+fmtNum(r.percAutoconsumo,1)+'%');
+      const body = [
+        ['Quantidade', ...YEARS.map(yy=>fmtNum(r.quantidades[yy]||0,2))],
+        ['Preço unitário', ...YEARS.map(yy=>money(r.precos[yy]||0))],
+        ['Total', ...YEARS.map(yy=>money(num(r.quantidades[yy])*num(r.precos[yy])))]
+      ];
+      table(['', ...YEARS.map(yy=>'Ano '+yy)], body, {columnStyles:{0:{halign:'left',cellWidth:100,fontStyle:'bold'}}});
+    });
+    const {brutaComerc, autoconsumo} = calcReceitasPorAno();
+    subTitle('Resumo de receitas — resultado');
+    table(['', ...YEARS.map(yy=>'Ano '+yy)], [
+      ['Receita bruta de comercialização', ...YEARS.map(yy=>money(brutaComerc[yy]))],
+      ['Valor do autoconsumo (informativo)', ...YEARS.map(yy=>money(autoconsumo[yy]))]
+    ], {columnStyles:{0:{halign:'left',cellWidth:160}}});
+  } else { note('Nenhuma receita lançada.'); }
+
+  /* ---------- FLUXO DE CAIXA ---------- */
+  sectionTitle('Fluxo de Caixa', 'Resultado calculado');
+  table(['Ano 0',''], [
+    ['(–) Investimento novo (recursos próprios)', money(-scn.novoProprioAno0)],
+    ['(–) Capital de giro inicial', money(-scn.giroBase)],
+    ['(=) Fluxo Ano 0', money(scn.fluxo0)]
+  ], {columnStyles:{0:{halign:'left',cellWidth:260}}, didParseCell:function(d){ if(d.row.index===2) d.cell.styles.fontStyle='bold'; }});
+
+  const rows = [
+    ['Receita bruta de comercialização', yy=>scn.anos[yy].brutaComerc, 0],
+    ['(–) Impostos e taxas sobre a receita', yy=>-scn.anos[yy].impostos, 0],
+    ['(=) Receita líquida', yy=>scn.anos[yy].receitaLiquida, 1],
+    ['(–) Custos operacionais', yy=>-scn.anos[yy].custos, 0],
+    ['(–) Parcelas de financiamento (principal + juros)', yy=>-scn.anos[yy].financ, 0],
+    ['(–) Reposição de investimentos', yy=>-scn.anos[yy].reposicao, 0],
+    ['(+) Recuperação do capital de giro', yy=>scn.anos[yy].recGiro, 0],
+    ['(=) Fluxo de caixa líquido do ano', yy=>scn.anos[yy].fluxoCaixa, 1]
+  ];
+  let acc = scn.fluxo0;
+  const accRow = YEARS.map(yy=>{ acc+=scn.anos[yy].fluxoCaixa; return acc; });
+  const bodyFluxo = rows.map(r=>[r[0], ...YEARS.map(yy=>money(r[1](yy)))]);
+  bodyFluxo.push(['Saldo de caixa acumulado', ...accRow.map(money)]);
+  table(['Item', ...YEARS.map(yy=>'Ano '+yy)], bodyFluxo,
+    {columnStyles:{0:{halign:'left',cellWidth:180}},
+     didParseCell:function(d){
+       const boldRows = [2,7,8];
+       if(boldRows.includes(d.row.index)) d.cell.styles.fontStyle='bold';
+     }});
+
+  /* ---------- INDICADORES POR CENÁRIO ---------- */
+  sectionTitle('Demonstrativo por Cenário — Ano '+y5, 'Resultado calculado · análise de sensibilidade');
+  kvGrid([
+    ['Cenário otimista', 'receita +'+fmtNum(state.cenarios.otimistaReceita,0)+'% · custo −'+fmtNum(state.cenarios.otimistaCusto,0)+'%'],
+    ['Cenário pessimista', 'receita −'+fmtNum(state.cenarios.pessimistaReceita,0)+'% · custo +'+fmtNum(state.cenarios.pessimistaCusto,0)+'%']
+  ], 2);
+  const nBenef = Math.max(1,num(state.meta.beneficiarios));
+  function drowPdf(label, get){
+    return [label, money(get(scnPess)), money(get(scn)), money(get(scnOtim))];
+  }
+  const bodyScn = [
+    drowPdf('Receita bruta de comercialização', s=>s.anos[y5].brutaComerc),
+    drowPdf('Valor do autoconsumo', s=>s.anos[y5].autoconsumo),
+    drowPdf('Impostos e taxas', s=>-s.anos[y5].impostos),
+    drowPdf('Receita líquida', s=>s.anos[y5].receitaLiquida),
+    drowPdf('Custo total', s=>-s.anos[y5].custos),
+    drowPdf('Juros do financiamento', s=>-s.anos[y5].juros),
+    drowPdf('Lucro líquido', s=>s.anos[y5].lucroContabil),
+    ['Lucratividade (%)',
+      fmtPct(scnPess.anos[y5].lucroContabil/Math.max(1,(scnPess.anos[y5].receitaLiquida+scnPess.anos[y5].autoconsumo))),
+      fmtPct(scn.anos[y5].lucroContabil/Math.max(1,(scn.anos[y5].receitaLiquida+scn.anos[y5].autoconsumo))),
+      fmtPct(scnOtim.anos[y5].lucroContabil/Math.max(1,(scnOtim.anos[y5].receitaLiquida+scnOtim.anos[y5].autoconsumo)))],
+    ['Renda mensal por beneficiário (caixa + autoconsumo)',
+      money(scnPess.anos[y5].rendaFamiliar/12/nBenef), money(scn.anos[y5].rendaFamiliar/12/nBenef), money(scnOtim.anos[y5].rendaFamiliar/12/nBenef)],
+    [LABELS.vplCurto+' (VPL)', explainVPL(scnPess), explainVPL(scn), explainVPL(scnOtim)],
+    [LABELS.tirCurto+' (TIR)', explainTIR(scnPess), explainTIR(scn), explainTIR(scnOtim)]
+  ];
+  table(['Medida','Pessimista','Realista','Otimista'], bodyScn,
+    {columnStyles:{0:{halign:'left',cellWidth:170}},
+     didParseCell:function(d){ if(d.row.index>=bodyScn.length-2) d.cell.styles.fontStyle='bold'; }});
+
+  /* ---------- RODAPÉS EM TODAS AS PÁGINAS ---------- */
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPages;p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_FAINT);
+    doc.text('SAF-PP · Caderno de Campo Digital — Análise Financeira do Empreendimento Rural', marginX, pageH-20);
+    doc.text('Página '+p+' de '+totalPages, pageW-marginX, pageH-20, {align:'right'});
+  }
+
+  const nomeArq = 'analise-financeira-'+(state.meta.produtor||'projeto').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')+'.pdf';
+  doc.save(nomeArq || 'analise-financeira.pdf');
+  showToast('PDF exportado com sucesso.');
+}
+
+/* top bar actions */
+function wireTopBar(){
+  document.getElementById('btnSample').addEventListener('click', ()=>{
+    showConfirm('Isso vai substituir os dados atuais pelo exemplo de demonstração. Continuar?', ()=>{
+      const previousState = JSON.parse(JSON.stringify(state));
+      state = defaultState();
+      scheduleSave();
+      renderAll();
+      showToast('Exemplo de demonstração carregado.', {
+        label:'Desfazer',
+        onClick:()=>{ state = previousState; scheduleSave(); renderAll(); showToast('Ação desfeita — dados anteriores restaurados.'); }
+      });
+    });
+  });
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    showConfirm('Isso vai apagar todos os dados preenchidos. Deseja continuar?', ()=>{
+      const previousState = JSON.parse(JSON.stringify(state));
+      state = defaultState();
+      state.investimentos=[]; state.financiamentos=[]; state.custos=[]; state.receitas=[];
+      state.meta = {produtor:'',local:'',atividade:'',beneficiarios:1,data:new Date().toISOString().slice(0,10),tipoProjeto:'zero'};
+      scheduleSave();
+      renderAll();
+      showToast('Todos os dados foram apagados.', {
+        label:'Desfazer',
+        onClick:()=>{ state = previousState; scheduleSave(); renderAll(); showToast('Ação desfeita — dados anteriores restaurados.'); }
+      });
+    });
+  });
+  document.getElementById('btnExportPdf').addEventListener('click', exportPDF);
+  document.getElementById('btnExportJson').addEventListener('click', exportJSON);
+  document.getElementById('btnImportJson').addEventListener('click', ()=>{
+    document.getElementById('fileImportJson').click();
+  });
+  document.getElementById('fileImportJson').addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // permite selecionar o mesmo arquivo de novo depois
+    if(!file) return;
+    importJSONFile(file);
+  });
+}
+
+/* ---------- Exportar / Importar dados brutos (.json) ----------
+   Complementa o Export PDF: o PDF é só um retrato para leitura/impressão,
+   sem dados estruturados. O JSON permite migrar de dispositivo/navegador,
+   fazer backup, ou continuar preenchendo depois em outro computador —
+   já que os dados hoje só ficam salvos localmente neste dispositivo. */
+function exportJSON(){
+  try{
+    const payload = JSON.stringify({ _safpp: true, versao: 1, exportadoEm: new Date().toISOString(), state: state }, null, 2);
+    const blob = new Blob([payload], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const nome = 'saf-pp-dados-'+(state.meta.produtor||'projeto').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')+'.json';
+    a.href = url; a.download = nome || 'saf-pp-dados.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    showToast('Dados exportados em .json — guarde este arquivo para importar depois ou em outro dispositivo.');
+  }catch(e){
+    console.error('Falha ao exportar JSON', e);
+    showToast('Não foi possível exportar os dados.');
+  }
+}
+function importJSONFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let parsed;
+    try{ parsed = JSON.parse(reader.result); }
+    catch(e){ showToast('Arquivo inválido — não é um .json legível.'); return; }
+    // aceita tanto o formato exportado por esta ferramenta ({_safpp:true, state:{...}})
+    // quanto um objeto de estado "cru", para maior tolerância
+    const incoming = (parsed && parsed._safpp && parsed.state) ? parsed.state : parsed;
+    const chavesEsperadas = ['meta','premissas','investimentos','financiamentos','custos','receitas'];
+    const pareceValido = incoming && typeof incoming==='object' && chavesEsperadas.every(k=> k in incoming);
+    if(!pareceValido){
+      showToast('Este arquivo não parece ser um export de dados do SAF-PP.');
+      return;
+    }
+    showConfirm('Isso vai substituir os dados atuais pelos dados do arquivo importado. Continuar?', ()=>{
+      const previousState = JSON.parse(JSON.stringify(state));
+      state = incoming;
+      uidN = 9999; // mantém contador de ids seguro após importar
+      scheduleSave();
+      renderAll();
+      showToast('Dados importados com sucesso.', {
+        label:'Desfazer',
+        onClick:()=>{ state = previousState; scheduleSave(); renderAll(); showToast('Ação desfeita — dados anteriores restaurados.'); }
+      });
+    });
+  };
+  reader.onerror = ()=> showToast('Não foi possível ler o arquivo selecionado.');
+  reader.readAsText(file, 'utf-8');
+}
+
+/* ============================== INIT ============================== */
+async function init(){
+  wireTopBar();
+  document.getElementById('content').addEventListener('input', handleInput);
+  document.getElementById('content').addEventListener('change', handleChange);
+  document.getElementById('content').addEventListener('click', handleClick);
+  await loadState();
+  renderAll();
+}
+init();
+
+})();

@@ -9,39 +9,28 @@
 <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,400;0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div id="app">
 
-  <header class="masthead" id="masthead">
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true">SAF</div>
-      <div class="brand-text">
-        <div class="brand-eyebrow">SAF-PP · Sistema de Análise Financeira</div>
-        <h1>Análise Financeira do Empreendimento Rural</h1>
-        <div class="sub">Caderno de Campo Digital — adaptado do SAF-PP (Meloni, 2017).</div>
-      </div>
+  <div class="masthead">
+    <div>
+      <h1>Análise Financeira do Empreendimento Rural</h1>
+      <div class="sub">Caderno de Campo Digital — adaptado do SAF-PP (Meloni, 2017).</div>
     </div>
-
-    <button class="menu-toggle" id="menuToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="mastheadActions">
-      <span class="hbars"><span></span><span></span><span></span></span>
-      <span class="menu-toggle-label">Ações</span>
-    </button>
-
-    <div class="masthead-right" id="mastheadActions">
+    <div class="masthead-right">
       <div class="save-state"><span class="save-dot" id="saveDot"></span><span id="saveLabel">dados salvos neste dispositivo</span></div>
       <div class="top-actions">
-        <button class="btn small ochre" id="btnExportPdf">⭳ Exportar PDF</button>
+        <button class="btn small" id="btnSample">Carregar exemplo</button>
+        <button class="btn small danger" id="btnReset">Limpar tudo</button>
         <button class="btn small" id="btnExportJson">⭳ Exportar dados (.json)</button>
         <button class="btn small" id="btnImportJson">⭱ Importar dados</button>
         <input type="file" id="fileImportJson" accept="application/json,.json" style="display:none;">
-        <button class="btn small" id="btnSample">Carregar exemplo</button>
-        <button class="btn small danger" id="btnReset">Limpar tudo</button>
+        <button class="btn small ochre" id="btnExportPdf">⭳ Exportar PDF</button>
       </div>
     </div>
-  </header>
-  <div class="actions-backdrop" id="actionsBackdrop"></div>
+  </div>
 
   <div class="layout">
     <nav class="tabs" id="tabs"></nav>
@@ -50,14 +39,6 @@
 
   <footer class="appfoot">SAF-PP · adaptado para empreendimentos já em andamento — investimentos existentes não geram novo desembolso, apenas patrimônio, depreciação e reposição futura.</footer>
 </div>
-
-<script src="js/state.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/calculations.js"></script>
-<script src="js/render.js"></script>
-<script src="js/events.js"></script>
-<script src="js/pdf-export.js"></script>
-<script src="js/data-io.js"></script>
-<script src="js/app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

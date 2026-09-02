@@ -39,55 +39,30 @@
   input, select{font-family:'IBM Plex Mono', monospace;}
 
   /* ---------- Shell ---------- */
-  #app{max-width:1280px;margin:0 auto;padding:0 20px 60px;}
+  #app{max-width:1280px;margin:0 auto;padding:22px 20px 60px;}
 
-  /* ---------- Header (sticky app bar) ---------- */
   .masthead{
-    position:sticky;top:0;z-index:150;
-    display:flex;justify-content:space-between;align-items:center;gap:18px;
-    background:var(--paper);
+    display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
     border-bottom:3px double var(--ink);
-    padding:14px 0;margin:0 0 18px;
+    padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;
   }
-  .masthead.is-stuck{box-shadow:0 6px 14px var(--shadow);}
-  .brand{display:flex;align-items:center;gap:12px;min-width:0;}
-  .brand-mark{
-    flex:0 0 auto;width:38px;height:38px;border-radius:6px;
-    background:var(--green-dark);color:var(--card-2);
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Zilla Slab',serif;font-weight:700;font-size:14px;letter-spacing:.02em;
-    box-shadow:0 0 0 3px rgba(47,107,76,0.15);
-  }
-  .brand-text{min-width:0;}
   .masthead .brand-eyebrow{
     font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--ink-soft);margin-bottom:2px;
+    text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px;
   }
-  .masthead h1{font-size:22px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .masthead .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-
-  .masthead-right{display:flex;align-items:center;gap:16px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;}
-  .save-state{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
-  .save-dot{width:7px;height:7px;border-radius:50%;background:var(--green-soft);flex:0 0 auto;}
+  .masthead h1{font-size:30px;letter-spacing:.01em;}
+  .masthead .sub{font-size:13px;color:var(--ink-soft);margin-top:4px;font-style:italic;}
+  .masthead-right{text-align:right;font-size:12px;color:var(--ink-soft);}
+  .save-state{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-bottom:6px;}
+  .save-dot{width:7px;height:7px;border-radius:50%;background:var(--green-soft);}
   .save-dot.busy{background:var(--ochre);}
-  .top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;}
-
-  /* menu de ações (colapsa os botões em telas menores, evitando empilhamento) */
-  .menu-toggle{
-    display:none;align-items:center;gap:6px;border:1px solid var(--ink);background:var(--card-2);
-    color:var(--ink);padding:8px 10px;border-radius:2px;font-size:13px;flex:0 0 auto;
-  }
-  .menu-toggle:hover{background:var(--ink);color:var(--card-2);}
-  .menu-toggle .hbars{display:flex;flex-direction:column;gap:3px;width:16px;}
-  .menu-toggle .hbars span{display:block;height:2px;background:currentColor;border-radius:1px;}
-  .actions-backdrop{display:none;position:fixed;inset:0;background:rgba(35,32,26,0.28);z-index:145;}
-  .actions-backdrop.open{display:block;}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 
   /* ---------- Layout: side tabs + content ---------- */
   .layout{display:flex;gap:0;align-items:flex-start;}
   nav.tabs{
     width:206px;flex:0 0 206px;display:flex;flex-direction:column;gap:2px;
-    position:sticky;top:calc(var(--header-h, 88px) + 14px);
+    position:sticky;top:14px;
   }
   nav.tabs button{
     text-align:left;background:var(--paper-2);border:1px solid var(--line);
@@ -317,26 +292,14 @@
 
   /* ============================== RESPONSIVO (CELULAR / TABLET) ============================== */
   @media (max-width: 860px){
-    #app{padding:0 12px 40px;}
+    #app{padding:14px 12px 40px;}
 
-    .masthead{padding:10px 0;gap:10px;}
-    .brand-mark{width:32px;height:32px;font-size:12px;border-radius:5px;}
-    .masthead h1{font-size:16.5px;}
-    .masthead .brand-eyebrow{font-size:9.5px;}
-    .masthead .sub{display:none;}
-
-    /* botões viram um único menu suspenso, para não empilhar/estourar a tela */
-    .menu-toggle{display:flex;}
-    .masthead-right{
-      position:absolute;top:100%;right:0;left:0;margin-top:6px;
-      display:none;flex-direction:column;align-items:stretch;gap:10px;
-      background:var(--card);border:1px solid var(--line);border-radius:6px;
-      box-shadow:0 12px 26px var(--shadow);padding:14px;z-index:155;
-    }
-    .masthead-right.open{display:flex;}
-    .save-state{justify-content:flex-start;font-size:12.5px;}
-    .top-actions{flex-direction:column;align-items:stretch;flex-wrap:nowrap;}
-    .top-actions .btn{width:100%;}
+    .masthead{flex-direction:column;align-items:stretch;gap:10px;padding-bottom:12px;}
+    .masthead h1{font-size:22px;}
+    .masthead-right{text-align:left;}
+    .save-state{justify-content:flex-start;}
+    .top-actions{justify-content:flex-start;}
+    .top-actions .btn{flex:1 1 auto;}
 
     /* sidebar vira faixa horizontal de abas roláveis, no topo */
     .layout{flex-direction:column;}
@@ -380,6 +343,6 @@
   }
   @media (max-width: 480px){
     .kpi-grid{grid-template-columns:1fr;}
-    .masthead h1{font-size:15px;}
-    .brand-mark{width:28px;height:28px;font-size:11px;}
+    .masthead h1{font-size:19px;}
+    .brand-eyebrow{font-size:10px;}
   }
