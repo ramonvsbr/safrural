@@ -881,50 +881,108 @@ function renderInvest(){
 function esc(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
 
 /* ============================== PANEL: FINANCIAMENTOS ============================== */
+function recalcularpagamentosFinanciamento(f) {
+  const saldo = num(f.saldoDevedor);
+  const taxaAnual = num(f.percJuros) / 100;
+  const anosTotais = clamp(parseInt(f.prazoAnos) || 0, 0, 35);
+  const carencia = clamp(parseInt(f.carenciaAnos) || 0, 0, anosTotais - 1);
+  const bonusAdimplencia = clamp(num(f.bonusAdimplencia) / 100, 0, 1); // Ex: 15% -> 0.15
+
+  f.parcelas = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+
+  const anosPagamento = anosTotais - carencia;
+
+  if (saldo > 0 && anosPagamento > 0) {
+    let valorParcelaBruta = 0;
+
+    if (taxaAnual > 0) {
+      valorParcelaBruta = saldo * (taxaAnual * Math.pow(1 + taxaAnual, anosPagamento)) / (Math.pow(1 + taxaAnual, anosPagamento) - 1);
+    } else {
+      valorParcelaBruta = saldo / anosPagamento;
+    }
+
+    // Aplicação do desconto de adimplência na parcela
+    const valorParcelaLiquida = valorParcelaBruta * (1 - bonusAdimplencia);
+
+    for (let y = 1; y <= 5; y++) {
+      if (y <= carencia) {
+        f.parcelas[y] = 0; // Período de carência
+      } else if (y <= anosTotais) {
+        f.parcelas[y] = Math.round(valorParcelaLiquida * 100) / 100;
+      }
+    }
+  }
+}
+
 function renderFinanc(){
   let html = '<div class="panel-head"><div><h2>Dívidas Ativas / Financiamentos</h2></div>'+
     '<button class="btn ochre small" data-action="add-fin">+ nova dívida</button></div>';
 
-  html += '<div class="panel-note">Se algum bem já usado (ou o novo item marcado como "financiado") ainda tem parcelas a pagar — como um financiamento Pronaf — lance aqui os valores anuais. Essas parcelas <b>saem do caixa de verdade</b> e entram no Fluxo de Caixa. '+
-    'Informe também o <b>% de juros da parcela</b>: a maior parte da parcela costuma ser devolução do dinheiro emprestado (amortização), mas uma parte é juros — só essa parte de juros conta como despesa no Lucro Líquido. Se não souber o percentual exato, um valor aproximado (ex.: 20–30% em linhas de crédito rural subsidiadas) já melhora bastante a precisão do resultado.</div>';
+  html += '<div class="panel-note">Informe o <b>Saldo Devedor</b>, <b>Juros</b>, <b>Prazo</b>, <b>Carência</b> e <b>Bônus de Adimplência</b> (se houver). ' +
+    'O sistema calculará as parcelas líquidas projetadas para a janela de 5 anos.</div>';
 
-  html += '<div class="wrap-table"><table class="data"><thead><tr><th style="min-width:200px">Descrição</th><th>Saldo devedor (R$)</th><th>Juros na parcela (%)</th>'+
-    YEARS.map(y=>'<th>Parcela Ano '+y+'</th>').join('')+'<th>Total</th><th></th></tr></thead><tbody>';
+  html += '<div class="wrap-table"><table class="data"><thead><tr>' +
+    '<th style="min-width:150px">Descrição</th>' +
+    '<th>Saldo Devedor (R$)</th>' +
+    '<th>Juros (% a.a.)</th>' +
+    '<th>Prazo (Anos)</th>' +
+    '<th>Carência (Anos)</th>' +
+    '<th>Bônus Adimpl. (%)</th>' +
+    YEARS.map(y => '<th>Parcela Ano ' + y + '</th>').join('') +
+    '<th>Total 5 Anos</th><th></th></tr></thead><tbody>';
 
-  if(state.financiamentos.length===0){
-    html += '<tr><td colspan="10" class="empty-hint">Nenhuma dívida lançada. Se as máquinas foram compradas à vista, esta aba pode ficar vazia.</td></tr>';
+  if (state.financiamentos.length === 0) {
+    html += '<tr><td colspan="13" class="empty-hint">Nenhuma dívida lançada. Se não houver financiamento, esta aba pode ficar vazia.</td></tr>';
   }
-  let totalPorAno={1:0,2:0,3:0,4:0,5:0};
-  let totalJurosPorAno={1:0,2:0,3:0,4:0,5:0};
-  state.financiamentos.forEach(f=>{
-    let totalF=0;
-    const pj = clamp(num(f.percJuros)/100,0,1);
-    YEARS.forEach(y=>{ const p=num(f.parcelas[y]); totalF+=p; totalPorAno[y]+=p; totalJurosPorAno[y]+=p*pj; });
-    html += '<tr><td class="txt"><input type="text" data-bind="financiamentos.'+f.id+'.descricao" value="'+esc(f.descricao)+'"></td>'+
-      '<td><input type="number" step="0.01" min="0" data-bind="financiamentos.'+f.id+'.saldoDevedor" value="'+f.saldoDevedor+'"></td>'+
-      '<td><input type="number" step="1" min="0" max="100" data-bind="financiamentos.'+f.id+'.percJuros" value="'+(f.percJuros||0)+'"></td>'+
-      YEARS.map(y=>'<td><input type="number" step="0.01" min="0" data-bind="financiamentos.'+f.id+'.parcelas.'+y+'" value="'+(f.parcelas[y]||0)+'"></td>').join('')+
-      '<td class="mono">'+fmtR$(totalF)+'</td>'+
-      '<td class="row-actions"><button class="icon-btn" data-action="del-fin" data-id="'+f.id+'">✕</button></td></tr>';
+
+  let totalPorAno = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+  let totalJurosPorAno = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+  let totalGeralDevido = 0;
+
+  const opcoesAnos = Array.from({length: 30}, (_, i) => i + 1);
+  const opcoesCarencia = Array.from({length: 6}, (_, i) => i);
+
+  state.financiamentos.forEach(f => {
+    recalcularpagamentosFinanciamento(f);
+
+    let totalF = 0;
+    const pj = clamp(num(f.percJuros) / 100, 0, 1);
+
+    YEARS.forEach(y => {
+      const p = num(f.parcelas[y]);
+      totalF += p;
+      totalPorAno[y] += p;
+      totalJurosPorAno[y] += p * pj;
+    });
+
+    totalGeralDevido += totalF;
+
+    html += '<tr>' +
+      '<td class="txt"><input type="text" data-bind="financiamentos.' + f.id + '.descricao" value="' + esc(f.descricao) + '"></td>' +
+      '<td><input type="number" step="0.01" min="0" data-bind="financiamentos.' + f.id + '.saldoDevedor" value="' + f.saldoDevedor + '"></td>' +
+      '<td><input type="number" step="0.01" min="0" max="100" data-bind="financiamentos.' + f.id + '.percJuros" value="' + (f.percJuros != null ? f.percJuros : 0) + '"></td>' +
+      '<td><select data-bind="financiamentos.' + f.id + '.prazoAnos">' +
+        opcoesAnos.map(a => '<option value="' + a + '" ' + (f.prazoAnos == a ? 'selected' : '') + '>' + a + ' ano(s)</option>').join('') +
+      '</select></td>' +
+      '<td><select data-bind="financiamentos.' + f.id + '.carenciaAnos">' +
+        opcoesCarencia.map(c => '<option value="' + c + '" ' + (f.carenciaAnos == c ? 'selected' : '') + '>' + (c === 0 ? 'Sem carência' : c + ' ano(s)') + '</option>').join('') +
+      '</select></td>' +
+      '<td><input type="number" step="0.01" min="0" max="100" placeholder="0" data-bind="financiamentos.' + f.id + '.bonusAdimplencia" value="' + (f.bonusAdimplencia != null ? f.bonusAdimplencia : 0) + '"></td>' +
+      YEARS.map(y => '<td class="mono">' + fmtR$(f.parcelas[y] || 0) + '</td>').join('') +
+      '<td class="mono"><b>' + fmtR$(totalF) + '</b></td>' +
+      '<td class="row-actions"><button class="icon-btn" data-action="del-fin" data-id="' + f.id + '">✕</button></td>' +
+      '</tr>';
   });
-  html += '<tr class="total-row"><td colspan="3">Total por ano</td>'+YEARS.map(y=>'<td class="mono">'+fmtR$(totalPorAno[y])+'</td>').join('')+'<td colspan="2"></td></tr>';
+
+  html += '<tr class="total-row"><td colspan="6">Total por ano</td>' +
+    YEARS.map(y => '<td class="mono">' + fmtR$(totalPorAno[y]) + '</td>').join('') +
+    '<td class="mono"><b>' + fmtR$(totalGeralDevido) + '</b></td><td></td></tr>';
   html += '</tbody></table></div>';
 
-  html += '<div class="grid g2" style="margin-top:16px;">'+
-    kpi('Total de parcelas nos 5 anos', fmtR$(YEARS.reduce((a,y)=>a+totalPorAno[y],0)), false, '', true)+
-    kpi('Dos quais, juros (despesa financeira)', fmtR$(YEARS.reduce((a,y)=>a+totalJurosPorAno[y],0)), false, '', true)+
+  html += '<div class="grid g2" style="margin-top:16px;">' +
+    kpi('Total amortizado com adimplência (5 anos)', fmtR$(totalGeralDevido), false, '', true) +
+    kpi('Estimativa de juros líquidos (5 anos)', fmtR$(YEARS.reduce((a, y) => a + totalJurosPorAno[y], 0)), false, '', true) +
     '</div>';
-
-  // Verificação cruzada informativa: valor lançado como "novo — financiado" em
-  // Investimentos vs. total de parcelas lançadas aqui. Ajuda a pegar esquecimento
-  // de lançar parcelas de um bem financiado (ou parcelas "soltas" sem bem vinculado).
-  const totNovoFin = state.investimentos.reduce((a,it)=> a + (it.origem==='novo_financiado'? itemValorTotal(it):0), 0);
-  const totParcelas5anos = YEARS.reduce((a,y)=>a+totalPorAno[y],0);
-  if(totNovoFin>0 || totParcelas5anos>0){
-    html += '<div class="panel-note" style="margin-top:14px;">Conferência: em <b>Investimentos</b>, você marcou <b>'+fmtR$(totNovoFin)+'</b> em bens "novo — financiado". Aqui, o total de parcelas lançadas nos 5 anos é <b>'+fmtR$(totParcelas5anos)+'</b>. '+
-      (totNovoFin>0 && totParcelas5anos===0 ? 'Não há parcelas lançadas para esse valor financiado — confira se não esqueceu de lançar a dívida.' :
-       'Esses valores não precisam bater exatamente (parcelas incluem juros e podem cobrir dívidas antigas não ligadas a um bem novo), mas vale conferir se fazem sentido entre si.')+'</div>';
-  }
 
   document.getElementById('content').innerHTML = html;
 }
