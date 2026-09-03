@@ -235,7 +235,7 @@ a{color:var(--green-dark);}
 .btn.small{padding:6px 10px;font-size:12px;}
 
 /* ---------- Layout: side tabs + content ---------- */
-.layout{display:flex;gap:16px;align-items:flex-start;}
+.layout{display:flex;gap:16px;align-items:flex-start;min-width:0;}
 nav.tabs{
   width:212px;flex:0 0 212px;display:flex;flex-direction:column;gap:3px;
   position:sticky;top:14px;
@@ -275,7 +275,7 @@ main.content{
   background:var(--card-2);border-left:3px solid var(--green-soft);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
   padding:9px 12px;}
 
-fieldset.block{border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px 16px 14px;margin-bottom:18px;background:var(--card-2);}
+fieldset.block{border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px 16px 14px;margin-bottom:18px;background:var(--card-2);min-width:0;}
 fieldset.block legend{font-family:'Fraunces',serif;font-weight:600;font-size:14px;padding:0 8px;color:var(--green-dark);}
 
 .grid{display:grid;gap:12px;}
@@ -302,7 +302,8 @@ table.data td.txt input{text-align:left;}
 table.data tr:nth-child(even){background:rgba(111,169,137,0.07);}
 table.data tr.total-row{background:var(--paper-2);font-weight:700;}
 table.data tr.total-row td{border-top:2px solid var(--ink);}
-.wrap-table{overflow-x:auto;border:1px solid var(--line-soft);border-radius:var(--radius-sm);}
+.wrap-table{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;border:1px solid var(--line-soft);border-radius:var(--radius-sm);}
+.wrap-table table{min-width:max-content;}
 
 .row-actions{display:flex;gap:6px;justify-content:center;}
 .icon-btn{border:1px solid var(--line);background:var(--card);color:var(--brick);width:25px;height:25px;border-radius:6px;font-size:13px;line-height:1;}
@@ -507,6 +508,11 @@ footer.appfoot{margin-top:22px;text-align:center;font-size:11.5px;color:var(--in
 
   table.data{font-size:11.8px;}
   table.data th, table.data td{padding:7px 6px;}
+
+  .wrap-table{scrollbar-width:thin;}
+  .wrap-table::-webkit-scrollbar{height:6px;}
+  .wrap-table::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px;}
+  .wrap-table::-webkit-scrollbar-track{background:transparent;}
 
   /* alvos de toque maiores */
   .icon-btn{width:30px;height:30px;font-size:14px;}
