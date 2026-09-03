@@ -99,7 +99,6 @@ function markSaved(ok) {
   }
 }
 function scheduleSave(){
-  markSaving();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     const ok = await storageSet(STORE_KEY, JSON.stringify(state));
@@ -334,12 +333,12 @@ function pontoEquilibrio(scn){
 // Termos amigáveis para substituir jargões financeiros no sistema e nos relatórios.
 // O termo técnico (sigla) é sempre mantido entre parênteses, para quem já o conhece.
 const LABELS = {
-  tmaCurto: 'Taxa mínima de atratividade',
-  tmaCompleto: 'Taxa mínima de atratividade (ex.: a taxa que o banco pagaria) — TMA',
-  vplCurto: 'Valor presente líquido',
-  vplCompleto: 'Valor presente líquido (VPL)',
-  tirCurto: 'Taxa interna de retorno anual',
-  tirCompleto: 'Taxa interna de retorno anual (TIR)',
+  tmaCurto: 'Rendimento mínimo desejado',
+  tmaCompleto: 'Rendimento mínimo desejado (ex.: a taxa que o banco pagaria) — TMA',
+  vplCurto: 'Lucro real acumulado no período',
+  vplCompleto: 'Lucro real acumulado no período (VPL)',
+  tirCurto: 'Rentabilidade anual do negócio',
+  tirCompleto: 'Rentabilidade anual do negócio (TIR)',
   paybackCurto: 'Tempo para recuperar o dinheiro investido',
   paybackCompleto: 'Tempo para recuperar o dinheiro investido (Payback)'
 };
@@ -773,11 +772,11 @@ function renderProjeto(){
     '<div class="tipo-projeto-grid">'+
     '<button type="button" class="tipo-card'+(!andamento?' active':'')+'" data-action="set-tipo-projeto" data-val="zero">'+
       '<div class="tc-title"><span class="dot"></span>Projeto do Zero</div>'+
-      '<div class="tc-desc">O sistema vai considerar o investimento inicial (Ano 0) e a necessidade de capital de giro.</div>'+
+      '<div class="tc-desc">Ainda vou construir, comprar máquinas/equipamentos ou montar a estrutura. O sistema vai considerar o investimento inicial (Ano 0) e a necessidade de capital de giro.</div>'+
     '</button>'+
     '<button type="button" class="tipo-card'+(andamento?' active':'')+'" data-action="set-tipo-projeto" data-val="andamento">'+
       '<div class="tc-title"><span class="dot"></span>Projeto em Andamento</div>'+
-      '<div class="tc-desc">O sistema não vai cobrar novo investimento no Ano 0 nem capital de giro inicial.</div>'+
+      '<div class="tc-desc">A estrutura já existe e a atividade já está funcionando. O sistema não vai cobrar novo investimento no Ano 0 nem capital de giro inicial.</div>'+
     '</button>'+
     '</div></fieldset>';
 
