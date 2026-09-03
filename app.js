@@ -122,13 +122,9 @@ async function loadState(){
 }
 
 /* ============================== HELPERS ============================== */
-function fmtR$(n){
+function fmtR$(n,dec){
   if(!isFinite(n)) return "—";
-  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
-}
-function fmtR$2(n){
-  if(!isFinite(n)) return "—";
-  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:2});
+  return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:dec==null?0:dec});
 }
 function fmtPct(n,dec){
   if(!isFinite(n)) return "—";
@@ -338,12 +334,12 @@ function pontoEquilibrio(scn){
 // Termos amigáveis para substituir jargões financeiros no sistema e nos relatórios.
 // O termo técnico (sigla) é sempre mantido entre parênteses, para quem já o conhece.
 const LABELS = {
-  tmaCurto: 'Rendimento mínimo desejado',
-  tmaCompleto: 'Rendimento mínimo desejado (ex.: a taxa que o banco pagaria) — TMA',
-  vplCurto: 'Lucro real acumulado no período',
-  vplCompleto: 'Lucro real acumulado no período (VPL)',
-  tirCurto: 'Rentabilidade anual do negócio',
-  tirCompleto: 'Rentabilidade anual do negócio (TIR)',
+  tmaCurto: 'Taxa mínima de atratividade',
+  tmaCompleto: 'Taxa mínima de atratividade (ex.: a taxa que o banco pagaria) — TMA',
+  vplCurto: 'Valor presente líquido',
+  vplCompleto: 'Valor presente líquido (VPL)',
+  tirCurto: 'Taxa interna de retorno anual',
+  tirCompleto: 'Taxa interna de retorno anual (TIR)',
   paybackCurto: 'Tempo para recuperar o dinheiro investido',
   paybackCompleto: 'Tempo para recuperar o dinheiro investido (Payback)'
 };
@@ -375,6 +371,29 @@ function explainPayback(scn){
     return 'Imediato — não há investimento inicial a recuperar';
   }
   return 'Não recupera o investimento dentro de 5 anos';
+}
+
+/* Demonstrativo por cenário (pessimista/realista/otimista) — usado tanto na
+   tela (renderIndicadores) quanto no PDF (exportPDF), para que a fórmula de
+   cada linha exista em um único lugar. */
+function buildCenarioRows(scn, scnPess, scnOtim, y){
+  const nBenef = Math.max(1,num(state.meta.beneficiarios));
+  const lucrPct = s => s.anos[y].lucroContabil/Math.max(1,(s.anos[y].receitaLiquida+s.anos[y].autoconsumo));
+  const rendaMes = s => s.anos[y].rendaFamiliar/12/nBenef;
+  const cells = (get,fmt) => ({pess:fmt(get(scnPess)), real:fmt(get(scn)), otim:fmt(get(scnOtim))});
+  return [
+    {label:'Receita bruta de comercialização', ...cells(s=>s.anos[y].brutaComerc, fmtR$)},
+    {label:'Valor do autoconsumo', ...cells(s=>s.anos[y].autoconsumo, fmtR$)},
+    {label:'Impostos e taxas', ...cells(s=>-s.anos[y].impostos, fmtR$)},
+    {label:'Receita líquida', ...cells(s=>s.anos[y].receitaLiquida, fmtR$)},
+    {label:'Custo total', ...cells(s=>-s.anos[y].custos, fmtR$)},
+    {label:'Juros do financiamento', ...cells(s=>-s.anos[y].juros, fmtR$)},
+    {label:'Lucro líquido', ...cells(s=>s.anos[y].lucroContabil, fmtR$)},
+    {label:'Lucratividade (%)', ...cells(lucrPct, fmtPct)},
+    {label:'Renda mensal por beneficiário', sub:'(caixa + autoconsumo)', ...cells(rendaMes, fmtR$)},
+    {label:LABELS.vplCurto+' (VPL)', pess:explainVPL(scnPess), real:explainVPL(scn), otim:explainVPL(scnOtim), bold:true},
+    {label:LABELS.tirCurto+' (TIR)', pess:explainTIR(scnPess), real:explainTIR(scn), otim:explainTIR(scnOtim), bold:true}
+  ];
 }
 
 /* ---------- Semáforo de viabilidade ---------- */
@@ -621,6 +640,12 @@ function renderAjuda(){
     'Um valor negativo indica que o projeto, nas condições simuladas, não cobre o rendimento mínimo desejado sobre o capital investido.',
     'Quanto maior, melhor');
 
+  html += glossItem(LABELS.tmaCurto, 'TMA · Taxa Mínima de Atratividade',
+    'É o retorno mínimo que você aceitaria ganhar aplicando esse mesmo dinheiro em outro lugar — como a poupança, um CDB ou outra aplicação de baixo risco — em vez de investir no projeto.',
+    '<b>Como ler:</b> é o "piso" que o projeto precisa superar para valer a pena. Ela é usada para descontar o '+LABELS.vplCurto.toLowerCase()+' e como referência de comparação para a '+LABELS.tirCurto.toLowerCase()+': se a TIR ficar muito próxima ou abaixo da TMA, a margem de segurança do projeto é pequena. '+
+    'Lance essa taxa em <b>preços de hoje</b>, sem embutir inflação futura — assim como os demais valores do sistema.',
+    'Ajuste conforme sua realidade — não é um resultado do projeto');
+
   html += glossItem(LABELS.tirCurto, 'TIR · Taxa Interna de Retorno',
     'É a taxa de retorno anual que o próprio negócio proporciona — o quanto ele "rende" por ano, em porcentagem, comparado ao dinheiro que foi colocado nele.',
     '<b>Como ler:</b> compare com o '+LABELS.tmaCurto.toLowerCase()+'. Se a rentabilidade anual for maior, o projeto rende mais do que outras alternativas de aplicação do dinheiro e vale a pena investir. '+
@@ -735,8 +760,8 @@ function repoList(rep){
   YEARS.forEach(y=>{ if(rep[y]>0) parts.push('Ano '+y+': '+fmtR$(rep[y])); });
   return parts.length? parts.join(' · ') : 'nenhuma no horizonte';
 }
-function kpi(lbl,val,neg,sub){
-  return '<div class="kpi"><div class="lbl">'+lbl+'</div><div class="val '+(neg?'neg':'')+'">'+val+'</div><div class="sub">'+(sub||'')+'</div></div>';
+function kpi(lbl,val,neg,sub,mini){
+  return '<div class="kpi'+(mini?' mini':'')+'"><div class="lbl">'+lbl+'</div><div class="val '+(neg?'neg':'')+'">'+val+'</div><div class="sub">'+(sub||'')+'</div></div>';
 }
 
 /* ============================== PANEL: PROJETO (meta + premissas) ============================== */
@@ -748,11 +773,11 @@ function renderProjeto(){
     '<div class="tipo-projeto-grid">'+
     '<button type="button" class="tipo-card'+(!andamento?' active':'')+'" data-action="set-tipo-projeto" data-val="zero">'+
       '<div class="tc-title"><span class="dot"></span>Projeto do Zero</div>'+
-      '<div class="tc-desc">Ainda vou construir, comprar máquinas/equipamentos ou montar a estrutura. O sistema vai considerar o investimento inicial (Ano 0) e a necessidade de capital de giro.</div>'+
+      '<div class="tc-desc">O sistema vai considerar o investimento inicial (Ano 0) e a necessidade de capital de giro.</div>'+
     '</button>'+
     '<button type="button" class="tipo-card'+(andamento?' active':'')+'" data-action="set-tipo-projeto" data-val="andamento">'+
       '<div class="tc-title"><span class="dot"></span>Projeto em Andamento</div>'+
-      '<div class="tc-desc">A estrutura já existe e a atividade já está funcionando. O sistema não vai cobrar novo investimento no Ano 0 nem capital de giro inicial.</div>'+
+      '<div class="tc-desc">O sistema não vai cobrar novo investimento no Ano 0 nem capital de giro inicial.</div>'+
     '</button>'+
     '</div></fieldset>';
 
@@ -777,10 +802,7 @@ function renderProjeto(){
     '</div></fieldset>';
   html += '<div class="panel-note" style="margin-top:-8px;">Esses dois valores definem quando o semáforo (Painel Geral) passa de verde para amarelo: uma folga pequena entre a rentabilidade do projeto (TIR) e o '+LABELS.tmaCurto.toLowerCase()+', ou um tempo de retorno (payback) considerado longo. Ajuste conforme o critério da sua instituição/técnico responsável — os valores padrão (3 p.p. e 4 anos) são uma referência geral, não uma norma fixa.</div>';
 
-  html += '<div class="panel-note">Essas premissas alimentam todos os cálculos automáticos: impostos reduzem a receita líquida; '+
-    'o <b>'+LABELS.tmaCurto.toLowerCase()+'</b> (TMA) é o retorno mínimo que você aceitaria ganhar aplicando esse mesmo dinheiro em outro lugar — como a poupança ou um banco — '+
-    'e é usado para saber se o negócio vale mais a pena do que essa alternativa; o "ano de análise" define qual ano aparece nos indicadores e no ponto de equilíbrio. '+
-    '<br><br><b>Importante:</b> lance todos os valores (preços, custos, parcelas) em <u>preços de hoje</u>, sem embutir inflação futura — e use como '+LABELS.tmaCurto.toLowerCase()+' uma taxa também "de hoje" (ex.: o que a poupança ou um CDB pagariam agora), para manter a comparação justa. '+
+  html += '<div class="panel-note"><b>Importante:</b> lance todos os valores (preços, custos, parcelas) em <u>preços de hoje</u>, sem embutir inflação futura — e use como '+LABELS.tmaCurto.toLowerCase()+' uma taxa também "de hoje" (ex.: o que a poupança ou um CDB pagariam agora), para manter a comparação justa. '+
     'O percentual de impostos/taxas é aplicado de forma simplificada, direto sobre a receita comercializada (como no Simples/Funrural) — ele não substitui uma consulta ao regime tributário específico do seu caso, principalmente se a atividade estiver em faixas ou regras diferentes.</div>';
 
   if(andamento){
@@ -849,16 +871,13 @@ function renderInvest(){
   html += '</tbody></table></div>';
 
   html += '<div class="grid g4" style="margin-top:16px;">'+
-    kpiMini('Novo — recursos próprios', fmtR$(totNovoProprio))+
-    kpiMini('Novo — financiado', fmtR$(totNovoFin))+
-    kpiMini('Patrimônio já existente', fmtR$(totExist))+
-    kpiMini('Depreciação anual total', fmtR$(totDeprec))+
+    kpi('Novo — recursos próprios', fmtR$(totNovoProprio), false, '', true)+
+    kpi('Novo — financiado', fmtR$(totNovoFin), false, '', true)+
+    kpi('Patrimônio já existente', fmtR$(totExist), false, '', true)+
+    kpi('Depreciação anual total', fmtR$(totDeprec), false, '', true)+
     '</div>';
 
   document.getElementById('content').innerHTML = html;
-}
-function kpiMini(l,v){
-  return '<div class="kpi"><div class="lbl">'+l+'</div><div class="val" style="font-size:18px;">'+v+'</div></div>';
 }
 function esc(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
 
@@ -893,8 +912,8 @@ function renderFinanc(){
   html += '</tbody></table></div>';
 
   html += '<div class="grid g2" style="margin-top:16px;">'+
-    kpiMini('Total de parcelas nos 5 anos', fmtR$(YEARS.reduce((a,y)=>a+totalPorAno[y],0)))+
-    kpiMini('Dos quais, juros (despesa financeira)', fmtR$(YEARS.reduce((a,y)=>a+totalJurosPorAno[y],0)))+
+    kpi('Total de parcelas nos 5 anos', fmtR$(YEARS.reduce((a,y)=>a+totalPorAno[y],0)), false, '', true)+
+    kpi('Dos quais, juros (despesa financeira)', fmtR$(YEARS.reduce((a,y)=>a+totalJurosPorAno[y],0)), false, '', true)+
     '</div>';
 
   // Verificação cruzada informativa: valor lançado como "novo — financiado" em
@@ -965,9 +984,9 @@ function renderGiro(){
   html += '</div></fieldset>';
 
   html += '<div class="kpi-grid kpi-grid-3">'+
-    kpiMini('Custo operacional mensal (Ano 1)', fmtR$(custoTotal[1]/12))+
-    kpiMini('Meses de cobertura', state.premissas.mesesGiro+' meses (ajuste em 01 · Premissas)')+
-    kpiMini('Capital de giro considerado', fmtR$(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):auto))+
+    kpi('Custo operacional mensal (Ano 1)', fmtR$(custoTotal[1]/12), false, '', true)+
+    kpi('Meses de cobertura', state.premissas.mesesGiro+' meses (ajuste em 01 · Premissas)', false, '', true)+
+    kpi('Capital de giro considerado', fmtR$(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):auto), false, '', true)+
     '</div>';
 
   document.getElementById('content').innerHTML = html;
@@ -1071,7 +1090,7 @@ function renderIndicadores(){
     '</div>';
 
   html += '<fieldset class="block"><legend>Ponto de equilíbrio — detalhamento (Ano '+y+')</legend><div class="grid g3">'+
-    kpiMini('Custos fixos', fmtR$(pe.cf))+kpiMini('Custos variáveis', fmtR$(pe.cv))+kpiMini('Receita líquida', fmtR$(pe.receitaLiq))+
+    kpi('Custos fixos', fmtR$(pe.cf), false, '', true)+kpi('Custos variáveis', fmtR$(pe.cv), false, '', true)+kpi('Receita líquida', fmtR$(pe.receitaLiq), false, '', true)+
     '</div><div class="panel-note" style="margin:12px 0 0;">Este valor é o ponto de equilíbrio <b>agregado</b>, considerando o mix atual de produtos/receitas. Se você vende mais de um produto com margens muito diferentes entre si, o valor em R$ mistura as duas coisas — ele diz "quanto de receita total", não qual produto sustenta o negócio.</div></fieldset>';
 
   // Cenarios config
@@ -1085,32 +1104,13 @@ function renderIndicadores(){
   const scnOtim = buildScenario({receita: 1+num(state.cenarios.otimistaReceita)/100, custo: 1-num(state.cenarios.otimistaCusto)/100});
   const scnPess = buildScenario({receita: 1-num(state.cenarios.pessimistaReceita)/100, custo: 1+num(state.cenarios.pessimistaCusto)/100});
 
-  function drow(label, get){
-    return '<tr><td class="txt">'+label+'</td>'+
-      '<td>'+fmtR$(get(scnPess))+'</td>'+
-      '<td>'+fmtR$(get(scn))+'</td>'+
-      '<td>'+fmtR$(get(scnOtim))+'</td></tr>';
-  }
-  const nBenef = Math.max(1,num(state.meta.beneficiarios));
+  const rowsHtml = buildCenarioRows(scn, scnPess, scnOtim, y).map(r=>
+    '<tr'+(r.bold?' class="total-row"':'')+'><td class="txt">'+r.label+(r.sub?' <span class="muted-inline">'+r.sub+'</span>':'')+'</td>'+
+    '<td>'+r.pess+'</td><td>'+r.real+'</td><td>'+r.otim+'</td></tr>'
+  ).join('');
   html += '<fieldset class="block"><legend>Demonstrativo de resultados por cenário — Ano '+y+'</legend>'+
     '<div class="wrap-table"><table class="data scen-table"><thead><tr><th class="txt">Medida</th><th class="pess">Pessimista</th><th>Realista</th><th class="otim">Otimista</th></tr></thead><tbody>'+
-    drow('Receita bruta de comercialização', s=>s.anos[y].brutaComerc)+
-    drow('Valor do autoconsumo', s=>s.anos[y].autoconsumo)+
-    drow('Impostos e taxas', s=>-s.anos[y].impostos)+
-    drow('Receita líquida', s=>s.anos[y].receitaLiquida)+
-    drow('Custo total', s=>-s.anos[y].custos)+
-    drow('Juros do financiamento', s=>-s.anos[y].juros)+
-    drow('Lucro líquido', s=>s.anos[y].lucroContabil)+
-    '<tr><td class="txt">Lucratividade (%)</td>'+
-      '<td>'+fmtPct(scnPess.anos[y].lucroContabil/Math.max(1,(scnPess.anos[y].receitaLiquida+scnPess.anos[y].autoconsumo)))+'</td>'+
-      '<td>'+fmtPct(scn.anos[y].lucroContabil/Math.max(1,(scn.anos[y].receitaLiquida+scn.anos[y].autoconsumo)))+'</td>'+
-      '<td>'+fmtPct(scnOtim.anos[y].lucroContabil/Math.max(1,(scnOtim.anos[y].receitaLiquida+scnOtim.anos[y].autoconsumo)))+'</td></tr>'+
-    '<tr><td class="txt">Renda mensal por beneficiário <span style="font-weight:400;color:var(--ink-faint);">(caixa + autoconsumo)</span></td>'+
-      '<td>'+fmtR$(scnPess.anos[y].rendaFamiliar/12/nBenef)+'</td>'+
-      '<td>'+fmtR$(scn.anos[y].rendaFamiliar/12/nBenef)+'</td>'+
-      '<td>'+fmtR$(scnOtim.anos[y].rendaFamiliar/12/nBenef)+'</td></tr>'+
-    '<tr class="total-row"><td class="txt">'+LABELS.vplCurto+' (VPL)</td><td>'+explainVPL(scnPess)+'</td><td>'+explainVPL(scn)+'</td><td>'+explainVPL(scnOtim)+'</td></tr>'+
-    '<tr class="total-row"><td class="txt">'+LABELS.tirCurto+' (TIR)</td><td>'+explainTIR(scnPess)+'</td><td>'+explainTIR(scn)+'</td><td>'+explainTIR(scnOtim)+'</td></tr>'+
+    rowsHtml+
     '</tbody></table></div></fieldset>';
 
   document.getElementById('content').innerHTML = html;
@@ -1361,8 +1361,6 @@ function exportPDF(){
     }, opts));
     y = doc.lastAutoTable.finalY + 16;
   }
-  const money = v => fmtR$(v);
-
   /* ---------- CAPA ---------- */
   doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_OCHRE);
   doc.text('CADERNO DE CAMPO DIGITAL — ADAPTADO DO SAF-PP (MELONI, 2017)', marginX, y);
@@ -1413,22 +1411,22 @@ function exportPDF(){
     [LABELS.vplCurto+' (VPL) — ao '+fmtNum(state.premissas.tma,1)+'%', explainVPL(scn), scn.vpl!=null&&scn.vpl<0],
     [LABELS.tirCurto+' (TIR)', explainTIR(scn), scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
     [LABELS.paybackCurto+' (Payback)', explainPayback(scn), scn.payback==null&&scn.fluxo0<0],
-    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?money(pe.valor):'Não se aplica', pe.valor==null]
+    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?fmtR$(pe.valor):'Não se aplica', pe.valor==null]
   ]);
   subTitle('Ponto de equilíbrio — detalhamento (Ano '+y5+')');
   kvGrid([
-    ['Custos fixos', money(pe.cf)],
-    ['Custos variáveis', money(pe.cv)],
-    ['Receita líquida', money(pe.receitaLiq)]
+    ['Custos fixos', fmtR$(pe.cf)],
+    ['Custos variáveis', fmtR$(pe.cv)],
+    ['Receita líquida', fmtR$(pe.receitaLiq)]
   ], 3);
   subTitle('Como o projeto está montado');
   kvGrid([
-    ['Patrimônio já existente (sem novo desembolso)', money(scn.inv.patrimonioExistente)],
-    ['Novo investimento — recursos próprios (Ano 0)', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.novoProprioAno0)],
-    ['Novo investimento financiado', money(scn.inv.novoFinanciado)],
-    ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':money(scn.giroBase)],
-    ['Depreciação anual total', money(scn.inv.deprecTotal)],
-    ['Renda mensal / beneficiário (Ano '+y5+') — caixa + autoconsumo', money(scn.anos[y5].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios)))]
+    ['Patrimônio já existente (sem novo desembolso)', fmtR$(scn.inv.patrimonioExistente)],
+    ['Novo investimento — recursos próprios (Ano 0)', scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0)],
+    ['Novo investimento financiado', fmtR$(scn.inv.novoFinanciado)],
+    ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase)],
+    ['Depreciação anual total', fmtR$(scn.inv.deprecTotal)],
+    ['Renda mensal / beneficiário (Ano '+y5+') — caixa + autoconsumo', fmtR$(scn.anos[y5].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios)))]
   ], 2);
 
   /* ---------- INVESTIMENTOS ---------- */
@@ -1440,16 +1438,16 @@ function exportPDF(){
       if(it.origem==='novo_proprio') tNP+=total; else if(it.origem==='novo_financiado') tNF+=total; else tEx+=total;
       tDep+=dep;
       const origemL = it.origem==='novo_proprio'?'Novo — próprio':it.origem==='novo_financiado'?'Novo — financiado':'Já existente';
-      return [it.descricao||'—', it.categoria, origemL, fmtNum(it.quantidade,0), money(it.valorUnit), money(total), fmtNum(vr,1)+' anos', money(dep)];
+      return [it.descricao||'—', it.categoria, origemL, fmtNum(it.quantidade,0), fmtR$(it.valorUnit), fmtR$(total), fmtNum(vr,1)+' anos', fmtR$(dep)];
     });
-    body.push(['Totais','','','','', money(tNP+tNF+tEx),'', money(tDep)]);
+    body.push(['Totais','','','','', fmtR$(tNP+tNF+tEx),'', fmtR$(tDep)]);
     table(['Descrição','Categoria','Origem','Qtd.','Valor unit.','Total','Vida útil restante','Deprec. anual'], body,
       {columnStyles:{0:{halign:'left',cellWidth:100},2:{halign:'left'}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
     kvGrid([
-      ['Novo — recursos próprios', money(tNP)],
-      ['Novo — financiado', money(tNF)],
-      ['Patrimônio já existente', money(tEx)],
-      ['Depreciação anual total', money(tDep)]
+      ['Novo — recursos próprios', fmtR$(tNP)],
+      ['Novo — financiado', fmtR$(tNF)],
+      ['Patrimônio já existente', fmtR$(tEx)],
+      ['Depreciação anual total', fmtR$(tDep)]
     ], 4);
   } else { note('Nenhum investimento lançado.'); }
 
@@ -1461,14 +1459,14 @@ function exportPDF(){
     const body = state.financiamentos.map(f=>{
       let totalF=0;
       const pj = clamp(num(f.percJuros)/100,0,1);
-      const parcelas = YEARS.map(yy=>{ const v=num(f.parcelas[yy]); totalF+=v; totalPorAno[yy]+=v; totalJurosPorAno[yy]+=v*pj; return money(v); });
-      return [f.descricao||'—', money(f.saldoDevedor), fmtNum(f.percJuros||0,0)+'%', ...parcelas, money(totalF)];
+      const parcelas = YEARS.map(yy=>{ const v=num(f.parcelas[yy]); totalF+=v; totalPorAno[yy]+=v; totalJurosPorAno[yy]+=v*pj; return fmtR$(v); });
+      return [f.descricao||'—', fmtR$(f.saldoDevedor), fmtNum(f.percJuros||0,0)+'%', ...parcelas, fmtR$(totalF)];
     });
-    body.push(['Total por ano','','', ...YEARS.map(yy=>money(totalPorAno[yy])), '']);
+    body.push(['Total por ano','','', ...YEARS.map(yy=>fmtR$(totalPorAno[yy])), '']);
     table(['Descrição','Saldo devedor','Juros na parcela', ...YEARS.map(yy=>'Ano '+yy), 'Total'], body,
       {columnStyles:{0:{halign:'left',cellWidth:120}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
     subTitle('Total de juros embutidos nas parcelas — despesa financeira considerada no Lucro Líquido');
-    kvGrid(YEARS.map(yy=>['Ano '+yy, money(totalJurosPorAno[yy])]), 5);
+    kvGrid(YEARS.map(yy=>['Ano '+yy, fmtR$(totalJurosPorAno[yy])]), 5);
   } else { note('Nenhuma dívida/financiamento lançado.'); }
 
   /* ---------- CUSTOS ---------- */
@@ -1476,10 +1474,10 @@ function exportPDF(){
   if(state.custos.length){
     const totalPorAno={1:0,2:0,3:0,4:0,5:0};
     const body = state.custos.map(c=>{
-      const vals = YEARS.map(yy=>{ const v=num(c.valores[yy]); totalPorAno[yy]+=v; return money(v); });
+      const vals = YEARS.map(yy=>{ const v=num(c.valores[yy]); totalPorAno[yy]+=v; return fmtR$(v); });
       return [c.descricao||'—', c.tipo, ...vals];
     });
-    body.push(['Total por ano','', ...YEARS.map(yy=>money(totalPorAno[yy]))]);
+    body.push(['Total por ano','', ...YEARS.map(yy=>fmtR$(totalPorAno[yy]))]);
     table(['Descrição','Tipo', ...YEARS.map(yy=>'Ano '+yy)], body,
       {columnStyles:{0:{halign:'left',cellWidth:150}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
   } else { note('Nenhum custo lançado.'); }
@@ -1493,9 +1491,9 @@ function exportPDF(){
     const giroAuto = calcCapitalGiro(custoTotalAno[1]);
     kvGrid([
       ['Modo de cálculo', state.capitalGiro.modo==='manual'?'Valor manual':'Automático'],
-      ['Custo operacional mensal (Ano 1)', money(custoTotalAno[1]/12)],
+      ['Custo operacional mensal (Ano 1)', fmtR$(custoTotalAno[1]/12)],
       ['Meses de cobertura', state.premissas.mesesGiro+' meses'],
-      ['Capital de giro considerado', money(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):giroAuto)]
+      ['Capital de giro considerado', fmtR$(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):giroAuto)]
     ], 2);
   }
 
@@ -1506,25 +1504,25 @@ function exportPDF(){
       subTitle((r.produto||'Produto')+'  ·  '+(r.unidade||'')+'  ·  autoconsumo: '+fmtNum(r.percAutoconsumo,1)+'%');
       const body = [
         ['Quantidade', ...YEARS.map(yy=>fmtNum(r.quantidades[yy]||0,2))],
-        ['Preço unitário', ...YEARS.map(yy=>money(r.precos[yy]||0))],
-        ['Total', ...YEARS.map(yy=>money(num(r.quantidades[yy])*num(r.precos[yy])))]
+        ['Preço unitário', ...YEARS.map(yy=>fmtR$(r.precos[yy]||0))],
+        ['Total', ...YEARS.map(yy=>fmtR$(num(r.quantidades[yy])*num(r.precos[yy])))]
       ];
       table(['', ...YEARS.map(yy=>'Ano '+yy)], body, {columnStyles:{0:{halign:'left',cellWidth:100,fontStyle:'bold'}}});
     });
     const {brutaComerc, autoconsumo} = calcReceitasPorAno();
     subTitle('Resumo de receitas — resultado');
     table(['', ...YEARS.map(yy=>'Ano '+yy)], [
-      ['Receita bruta de comercialização', ...YEARS.map(yy=>money(brutaComerc[yy]))],
-      ['Valor do autoconsumo (informativo)', ...YEARS.map(yy=>money(autoconsumo[yy]))]
+      ['Receita bruta de comercialização', ...YEARS.map(yy=>fmtR$(brutaComerc[yy]))],
+      ['Valor do autoconsumo (informativo)', ...YEARS.map(yy=>fmtR$(autoconsumo[yy]))]
     ], {columnStyles:{0:{halign:'left',cellWidth:160}}});
   } else { note('Nenhuma receita lançada.'); }
 
   /* ---------- FLUXO DE CAIXA ---------- */
   sectionTitle('Fluxo de Caixa', 'Resultado calculado');
   table(['Ano 0',''], [
-    ['(–) Investimento novo (recursos próprios)', money(-scn.novoProprioAno0)],
-    ['(–) Capital de giro inicial', money(-scn.giroBase)],
-    ['(=) Fluxo Ano 0', money(scn.fluxo0)]
+    ['(–) Investimento novo (recursos próprios)', fmtR$(-scn.novoProprioAno0)],
+    ['(–) Capital de giro inicial', fmtR$(-scn.giroBase)],
+    ['(=) Fluxo Ano 0', fmtR$(scn.fluxo0)]
   ], {columnStyles:{0:{halign:'left',cellWidth:260}}, didParseCell:function(d){ if(d.row.index===2) d.cell.styles.fontStyle='bold'; }});
 
   const rows = [
@@ -1539,8 +1537,8 @@ function exportPDF(){
   ];
   let acc = scn.fluxo0;
   const accRow = YEARS.map(yy=>{ acc+=scn.anos[yy].fluxoCaixa; return acc; });
-  const bodyFluxo = rows.map(r=>[r[0], ...YEARS.map(yy=>money(r[1](yy)))]);
-  bodyFluxo.push(['Saldo de caixa acumulado', ...accRow.map(money)]);
+  const bodyFluxo = rows.map(r=>[r[0], ...YEARS.map(yy=>fmtR$(r[1](yy)))]);
+  bodyFluxo.push(['Saldo de caixa acumulado', ...accRow.map(fmtR$)]);
   table(['Item', ...YEARS.map(yy=>'Ano '+yy)], bodyFluxo,
     {columnStyles:{0:{halign:'left',cellWidth:180}},
      didParseCell:function(d){
@@ -1554,27 +1552,9 @@ function exportPDF(){
     ['Cenário otimista', 'receita +'+fmtNum(state.cenarios.otimistaReceita,0)+'% · custo −'+fmtNum(state.cenarios.otimistaCusto,0)+'%'],
     ['Cenário pessimista', 'receita −'+fmtNum(state.cenarios.pessimistaReceita,0)+'% · custo +'+fmtNum(state.cenarios.pessimistaCusto,0)+'%']
   ], 2);
-  const nBenef = Math.max(1,num(state.meta.beneficiarios));
-  function drowPdf(label, get){
-    return [label, money(get(scnPess)), money(get(scn)), money(get(scnOtim))];
-  }
-  const bodyScn = [
-    drowPdf('Receita bruta de comercialização', s=>s.anos[y5].brutaComerc),
-    drowPdf('Valor do autoconsumo', s=>s.anos[y5].autoconsumo),
-    drowPdf('Impostos e taxas', s=>-s.anos[y5].impostos),
-    drowPdf('Receita líquida', s=>s.anos[y5].receitaLiquida),
-    drowPdf('Custo total', s=>-s.anos[y5].custos),
-    drowPdf('Juros do financiamento', s=>-s.anos[y5].juros),
-    drowPdf('Lucro líquido', s=>s.anos[y5].lucroContabil),
-    ['Lucratividade (%)',
-      fmtPct(scnPess.anos[y5].lucroContabil/Math.max(1,(scnPess.anos[y5].receitaLiquida+scnPess.anos[y5].autoconsumo))),
-      fmtPct(scn.anos[y5].lucroContabil/Math.max(1,(scn.anos[y5].receitaLiquida+scn.anos[y5].autoconsumo))),
-      fmtPct(scnOtim.anos[y5].lucroContabil/Math.max(1,(scnOtim.anos[y5].receitaLiquida+scnOtim.anos[y5].autoconsumo)))],
-    ['Renda mensal por beneficiário (caixa + autoconsumo)',
-      money(scnPess.anos[y5].rendaFamiliar/12/nBenef), money(scn.anos[y5].rendaFamiliar/12/nBenef), money(scnOtim.anos[y5].rendaFamiliar/12/nBenef)],
-    [LABELS.vplCurto+' (VPL)', explainVPL(scnPess), explainVPL(scn), explainVPL(scnOtim)],
-    [LABELS.tirCurto+' (TIR)', explainTIR(scnPess), explainTIR(scn), explainTIR(scnOtim)]
-  ];
+  const bodyScn = buildCenarioRows(scn, scnPess, scnOtim, y5).map(r=>
+    [r.sub ? r.label+' '+r.sub : r.label, r.pess, r.real, r.otim]
+  );
   table(['Medida','Pessimista','Realista','Otimista'], bodyScn,
     {columnStyles:{0:{halign:'left',cellWidth:170}},
      didParseCell:function(d){ if(d.row.index>=bodyScn.length-2) d.cell.styles.fontStyle='bold'; }});
