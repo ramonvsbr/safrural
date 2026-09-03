@@ -964,7 +964,7 @@ function renderGiro(){
   }
   html += '</div></fieldset>';
 
-  html += '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">'+
+  html += '<div class="kpi-grid kpi-grid-3">'+
     kpiMini('Custo operacional mensal (Ano 1)', fmtR$(custoTotal[1]/12))+
     kpiMini('Meses de cobertura', state.premissas.mesesGiro+' meses (ajuste em 01 · Premissas)')+
     kpiMini('Capital de giro considerado', fmtR$(state.capitalGiro.modo==='manual'?num(state.capitalGiro.valorManual):auto))+
