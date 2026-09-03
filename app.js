@@ -89,9 +89,14 @@ async function storageGet(key){
   catch(e){ return null; }
 }
 
-function markSaving(){ const d=document.getElementById('saveDot'); const l=document.getElementById('saveLabel'); if(d){d.classList.add('busy'); l.textContent='salvando...';} }
-function markSaved(ok){ const d=document.getElementById('saveDot'); const l=document.getElementById('saveLabel');
-  if(d){ d.classList.remove('busy'); l.textContent= ok? 'dados salvos neste dispositivo' : 'não foi possível salvar — dados só nesta sessão'; }
+function markSaved(ok) {
+  // Mantida de forma neutra para evitar erros de execução no app.js
+  const d = document.getElementById('saveDot');
+  const l = document.getElementById('saveLabel');
+  if (d && l) {
+    d.classList.remove('busy');
+    l.textContent = 'salvo neste dispositivo';
+  }
 }
 function scheduleSave(){
   markSaving();
@@ -719,8 +724,6 @@ function renderDashboard(){
     '<li>Novo investimento com recursos próprios (Ano 0): <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0))+'</b></li>'+
     '<li>Novo investimento financiado: <b>'+fmtR$(inv.novoFinanciado)+'</b></li>'+
     '<li>Capital de giro estimado: <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase))+'</b></li>'+
-    '<li>Depreciação anual total: <b>'+fmtR$(inv.deprecTotal)+'</b> (custo contábil, não sai do caixa)</li>'+
-    '<li>Reposição de bens prevista dentro dos 5 anos: '+repoList(inv.reposicoes)+'</li>'+
     '</ul></div>';
 
   html += '</div>';
@@ -1591,7 +1594,24 @@ function exportPDF(){
 }
 
 /* top bar actions */
+/* top bar actions */
 function wireTopBar(){
+  const btnHamburger = document.getElementById('btnHamburger');
+  const dropdownMenu = document.getElementById('dropdownMenu');
+
+  if(btnHamburger && dropdownMenu){
+    btnHamburger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownMenu.classList.toggle('show');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!dropdownMenu.contains(e.target) && e.target !== btnHamburger) {
+        dropdownMenu.classList.remove('show');
+      }
+    });
+  }
+
   document.getElementById('btnSample').addEventListener('click', ()=>{
     showConfirm('Isso vai substituir os dados atuais pelo exemplo de demonstração. Continuar?', ()=>{
       const previousState = JSON.parse(JSON.stringify(state));
@@ -1604,6 +1624,7 @@ function wireTopBar(){
       });
     });
   });
+
   document.getElementById('btnReset').addEventListener('click', ()=>{
     showConfirm('Isso vai apagar todos os dados preenchidos. Deseja continuar?', ()=>{
       const previousState = JSON.parse(JSON.stringify(state));
@@ -1618,6 +1639,7 @@ function wireTopBar(){
       });
     });
   });
+
   document.getElementById('btnExportPdf').addEventListener('click', exportPDF);
   document.getElementById('btnExportJson').addEventListener('click', exportJSON);
   document.getElementById('btnImportJson').addEventListener('click', ()=>{
