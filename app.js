@@ -886,7 +886,7 @@ function recalcularpagamentosFinanciamento(f) {
   const taxaAnual = num(f.percJuros) / 100;
   const anosTotais = clamp(parseInt(f.prazoAnos) || 0, 0, 35);
   const carencia = clamp(parseInt(f.carenciaAnos) || 0, 0, anosTotais - 1);
-  const bonusAdimplencia = clamp(num(f.bonusAdimplencia) / 100, 0, 1); // Ex: 15% -> 0.15
+  const bonusAdimplencia = clamp(num(f.bonusAdimplencia) / 100, 0, 1);
 
   f.parcelas = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
 
@@ -901,12 +901,11 @@ function recalcularpagamentosFinanciamento(f) {
       valorParcelaBruta = saldo / anosPagamento;
     }
 
-    // Aplicação do desconto de adimplência na parcela
     const valorParcelaLiquida = valorParcelaBruta * (1 - bonusAdimplencia);
 
     for (let y = 1; y <= 5; y++) {
       if (y <= carencia) {
-        f.parcelas[y] = 0; // Período de carência
+        f.parcelas[y] = 0;
       } else if (y <= anosTotais) {
         f.parcelas[y] = Math.round(valorParcelaLiquida * 100) / 100;
       }
@@ -921,15 +920,16 @@ function renderFinanc(){
   html += '<div class="panel-note">Informe o <b>Saldo Devedor</b>, <b>Juros</b>, <b>Prazo</b>, <b>Carência</b> e <b>Bônus de Adimplência</b> (se houver). ' +
     'O sistema calculará as parcelas líquidas projetadas para a janela de 5 anos.</div>';
 
-  html += '<div class="wrap-table"><table class="data"><thead><tr>' +
-    '<th style="min-width:150px">Descrição</th>' +
-    '<th>Saldo Devedor (R$)</th>' +
-    '<th>Juros (% a.a.)</th>' +
-    '<th>Prazo (Anos)</th>' +
-    '<th>Carência (Anos)</th>' +
-    '<th>Bônus Adimpl. (%)</th>' +
-    YEARS.map(y => '<th>Parcela Ano ' + y + '</th>').join('') +
-    '<th>Total 5 Anos</th><th></th></tr></thead><tbody>';
+  html += '<div class="wrap-table" style="overflow-x: auto;"><table class="data" style="width: 100%; border-collapse: collapse;"><thead><tr>' +
+    '<th style="min-width: 110px; padding: 10px 8px;">Descrição</th>' +
+    '<th style="min-width: 90px; padding: 10px 8px;">Saldo Devedor (R$)</th>' +
+    '<th style="min-width: 70px; padding: 10px 8px;">Juros (% a.a.)</th>' +
+    '<th style="min-width: 30px; padding: 10px 8px;">Prazo (Anos)</th>' +
+    '<th style="min-width: 30px; padding: 10px 8px;">Carência (Anos)</th>' +
+    '<th style="min-width: 70px; padding: 10px 8px;">Bônus Adimpl. (%)</th>' +
+    YEARS.map(y => '<th style="min-width: 70px; padding: 10px 8px;">Parcela Ano ' + y + '</th>').join('') +
+    '<th style="min-width: 100px; padding: 10px 8px;">Total 5 Anos</th>' +
+    '<th style="width: 40px; padding: 10px 4px;"></th></tr></thead><tbody>';
 
   if (state.financiamentos.length === 0) {
     html += '<tr><td colspan="13" class="empty-hint">Nenhuma dívida lançada. Se não houver financiamento, esta aba pode ficar vazia.</td></tr>';
@@ -958,25 +958,25 @@ function renderFinanc(){
     totalGeralDevido += totalF;
 
     html += '<tr>' +
-      '<td class="txt"><input type="text" data-bind="financiamentos.' + f.id + '.descricao" value="' + esc(f.descricao) + '"></td>' +
-      '<td><input type="number" step="0.01" min="0" data-bind="financiamentos.' + f.id + '.saldoDevedor" value="' + f.saldoDevedor + '"></td>' +
-      '<td><input type="number" step="0.01" min="0" max="100" data-bind="financiamentos.' + f.id + '.percJuros" value="' + (f.percJuros != null ? f.percJuros : 0) + '"></td>' +
-      '<td><select data-bind="financiamentos.' + f.id + '.prazoAnos">' +
-        opcoesAnos.map(a => '<option value="' + a + '" ' + (f.prazoAnos == a ? 'selected' : '') + '>' + a + ' ano(s)</option>').join('') +
+      '<td class="txt" style="padding: 6px;"><input type="text" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.descricao" value="' + esc(f.descricao) + '"></td>' +
+      '<td style="padding: px;"><input type="number" step="0.01" min="0" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.saldoDevedor" value="' + f.saldoDevedor + '"></td>' +
+      '<td style="padding: 6px;"><input type="number" step="0.01" min="0" max="100" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.percJuros" value="' + (f.percJuros != null ? f.percJuros : 0) + '"></td>' +
+      '<td style="padding: 6px;"><select style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.prazoAnos">' +
+        opcoesAnos.map(a => '<option value="' + a + '" ' + (f.prazoAnos == a ? 'selected' : '') + '>' + a + '</option>').join('') +
       '</select></td>' +
-      '<td><select data-bind="financiamentos.' + f.id + '.carenciaAnos">' +
-        opcoesCarencia.map(c => '<option value="' + c + '" ' + (f.carenciaAnos == c ? 'selected' : '') + '>' + (c === 0 ? 'Sem carência' : c + ' ano(s)') + '</option>').join('') +
+      '<td style="padding: 6px;"><select style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.carenciaAnos">' +
+        opcoesCarencia.map(c => '<option value="' + c + '" ' + (f.carenciaAnos == c ? 'selected' : '') + '>' + (c === 0 ? 'Sem carência' : c + '') + '</option>').join('') +
       '</select></td>' +
-      '<td><input type="number" step="0.01" min="0" max="100" placeholder="0" data-bind="financiamentos.' + f.id + '.bonusAdimplencia" value="' + (f.bonusAdimplencia != null ? f.bonusAdimplencia : 0) + '"></td>' +
-      YEARS.map(y => '<td class="mono">' + fmtR$(f.parcelas[y] || 0) + '</td>').join('') +
-      '<td class="mono"><b>' + fmtR$(totalF) + '</b></td>' +
-      '<td class="row-actions"><button class="icon-btn" data-action="del-fin" data-id="' + f.id + '">✕</button></td>' +
+      '<td style="padding: 6px;"><input type="number" step="0.01" min="0" max="100" placeholder="0" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.bonusAdimplencia" value="' + (f.bonusAdimplencia != null ? f.bonusAdimplencia : 0) + '"></td>' +
+      YEARS.map(y => '<td class="mono" style="padding: 8px 10px; text-align: right;">' + fmtR$(f.parcelas[y] || 0) + '</td>').join('') +
+      '<td class="mono" style="padding: 8px 10px; text-align: right;"><b>' + fmtR$(totalF) + '</b></td>' +
+      '<td class="row-actions" style="padding: 6px; text-align: center;"><button class="icon-btn" data-action="del-fin" data-id="' + f.id + '">✕</button></td>' +
       '</tr>';
   });
 
-  html += '<tr class="total-row"><td colspan="6">Total por ano</td>' +
-    YEARS.map(y => '<td class="mono">' + fmtR$(totalPorAno[y]) + '</td>').join('') +
-    '<td class="mono"><b>' + fmtR$(totalGeralDevido) + '</b></td><td></td></tr>';
+  html += '<tr class="total-row"><td colspan="6" style="padding: 10px 8px; font-weight: bold;">Total por ano</td>' +
+    YEARS.map(y => '<td class="mono" style="padding: 10px 8px; text-align: right;">' + fmtR$(totalPorAno[y]) + '</td>').join('') +
+    '<td class="mono" style="padding: 10px 8px; text-align: right;"><b>' + fmtR$(totalGeralDevido) + '</b></td><td></td></tr>';
   html += '</tbody></table></div>';
 
   html += '<div class="grid g2" style="margin-top:16px;">' +
