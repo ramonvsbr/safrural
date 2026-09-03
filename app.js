@@ -61,6 +61,7 @@ let activeTab = "dashboard";
    e se não existir (ex: publicado no Cloudflare Pages, ou qualquer site fora do Claude)
    usa localStorage do navegador. Assim o mesmo arquivo funciona nos dois lugares. */
 const STORE_KEY = "safpp:v1:data";
+const TAB_KEY = "safpp:v1:activeTab";
 let saveTimer = null;
 
 function hasClaudeStorage(){
@@ -118,6 +119,21 @@ async function loadState(){
   }catch(e){ console.error('Falha ao carregar dados salvos', e); }
   markSaved(false);
   return false;
+}
+async function loadActiveTab(){
+  const h = window.location.hash.replace('#','');
+  if(h && TABS.some(t=>t.id===h)){
+    activeTab = h;
+    storageSet(TAB_KEY, activeTab);
+    return;
+  }
+  try{
+    const raw = await storageGet(TAB_KEY);
+    if(raw && TABS.some(t=>t.id===raw)){
+      activeTab = raw;
+      window.location.hash = activeTab;
+    }
+  }catch(e){ /* mantém a aba padrão */ }
 }
 
 /* ============================== HELPERS ============================== */
@@ -498,12 +514,34 @@ const TABS = [
 function renderTabs(){
   const nav = document.getElementById('tabs');
   nav.innerHTML = TABS.map(t=>
-    '<button data-tab="'+t.id+'" class="'+(activeTab===t.id?'active':'')+'"><span class="n">'+t.n+'</span>'+t.label+'</button>'
+    '<a href="#'+t.id+'" data-tab="'+t.id+'" class="'+(activeTab===t.id?'active':'')+'"><span class="n">'+t.n+'</span>'+t.label+'</a>'
   ).join('');
-  nav.querySelectorAll('button').forEach(b=>{
-    b.addEventListener('click', ()=>{ activeTab=b.dataset.tab; renderAll(); });
+  nav.querySelectorAll('a').forEach(a=>{
+    a.addEventListener('click', (ev)=>{
+      ev.preventDefault();
+      const tab = a.dataset.tab;
+      if(activeTab===tab) return;
+      if(window.location.hash.slice(1)===tab){
+        // hash já é esse (raro) — atualiza direto, pois não vai disparar hashchange
+        activeTab = tab;
+        storageSet(TAB_KEY, activeTab);
+        renderAll();
+      } else {
+        window.location.hash = tab; // dispara 'hashchange', que troca a aba e re-renderiza
+      }
+    });
   });
 }
+
+function setTabFromHash(){
+  const h = window.location.hash.replace('#','');
+  if(h && TABS.some(t=>t.id===h) && h!==activeTab){
+    activeTab = h;
+    storageSet(TAB_KEY, activeTab);
+    renderAll();
+  }
+}
+window.addEventListener('hashchange', setTabFromHash);
 
 /* ============================== FIELD BUILDERS ============================== */
 function fld(labelTxt, bind, value, opts){
@@ -1749,6 +1787,7 @@ async function init(){
   document.getElementById('content').addEventListener('change', handleChange);
   document.getElementById('content').addEventListener('click', handleClick);
   await loadState();
+  await loadActiveTab();
   renderAll();
 }
 init();
