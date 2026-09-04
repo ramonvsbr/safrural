@@ -1715,10 +1715,8 @@ function exportPDF(){
   const dataY     = subtitloY + 11; // linha da data
   const heroLogoY = tituloY - heroLogoSize*0.62; // alinha o topo da logo com o título
 
-  brandMark(heroLogoX, heroLogoY, heroLogoSize, false);
-
   doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(255,255,255);
-  doc.text('Sistema de Análise Financeira Rural', heroTextX, tituloY);
+  doc.text('Sistema de Análise Financeira', heroTextX, tituloY);
 
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(226,231,241);
   doc.text('Método SAF-PP (Meloni, 2017)', heroTextX, subtitloY);
