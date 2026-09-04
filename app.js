@@ -510,10 +510,24 @@ const TABS = [
   {id:'indicadores', n:'08', label:'Indicadores & Cenários'}
 ];
 
+const TAB_GROUPS = [
+  {label:'Suporte',        ids:['ajuda']},
+  {label:'Diagnóstico',    ids:['dashboard']},
+  {label:'Etapas do Projeto', ids:['projeto','invest','financ','custos','giro','receitas','fluxo']},
+  {label:'Resultados',     ids:['indicadores']}
+];
+
 function renderTabs(){
   const nav = document.getElementById('tabs');
-  nav.innerHTML = TABS.map(t=>
-    '<a href="#'+t.id+'" data-tab="'+t.id+'" class="'+(activeTab===t.id?'active':'')+'"><span class="n">'+t.n+'</span>'+t.label+'</a>'
+  const byId = {};
+  TABS.forEach(t=>byId[t.id]=t);
+  nav.innerHTML = TAB_GROUPS.map(g=>
+    '<div class="tab-group"><div class="tab-group-label">'+g.label+'</div>'+
+    g.ids.map(id=>{
+      const t = byId[id];
+      return '<a href="#'+t.id+'" data-tab="'+t.id+'" class="'+(activeTab===t.id?'active':'')+'"><span class="n">'+t.n+'</span>'+t.label+'</a>';
+    }).join('')+
+    '</div>'
   ).join('');
   nav.querySelectorAll('a').forEach(a=>{
     a.addEventListener('click', (ev)=>{

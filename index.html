@@ -6,58 +6,66 @@
 <title>SAF-PP · Análise Financeira do Empreendimento Rural</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="app">
 
-  <header class="topbar">
+<header class="topbar">
+  <div class="topbar-inner">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
-  <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Linha vertical do cifrão -->
-    <path d="M17 5v24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-    <!-- Curva do S do cifrão -->
-    <path d="M23 11.5c0-2.5-2.7-4.5-6-4.5s-6 2-6 4.5 2.7 4.5 6 4.5 6 2 6 4.5-2.7 4.5-6 4.5-6-2-6-4.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-</span>
+        <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17 5v24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M23 11.5c0-2.5-2.7-4.5-6-4.5s-6 2-6 4.5 2.7 4.5 6 4.5 6 2 6 4.5-2.7 4.5-6 4.5-6-2-6-4.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
       <div class="brand-text">
         <h1>Análise Financeira do Empreendimento Rural</h1>
-        <div class="sub">Caderno de campo digital, adaptado do método SAF-PP (Meloni, 2017)</div>
+        <div class="sub">Caderno de campo digital · método SAF-PP (Meloni, 2017)</div>
       </div>
     </div>
 
-    <div class="header-menu-container">
-      <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu de ações">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-      <div class="dropdown-menu" id="dropdownMenu">
-        <div class="menu-actions">
-          <button class="btn ghost" id="btnSample" title="Carregar exemplo"><span class="ic">✎</span><span class="label">Exemplo</span></button>
-          <button class="btn ghost" id="btnExportJson" title="Exportar dados (.json)"><span class="ic">⭳</span><span class="label">Exportar dados</span></button>
-          <button class="btn ghost" id="btnImportJson" title="Importar dados"><span class="ic">⭱</span><span class="label">Importar</span></button>
-          <input type="file" id="fileImportJson" accept="application/json,.json" style="display:none;">
-          <button class="btn danger" id="btnReset" title="Limpar tudo"><span class="ic">⟲</span><span class="label">Limpar</span></button>
-          <button class="btn primary-cta" id="btnExportPdf" title="Exportar PDF"><span class="ic">⭳</span><span class="label">Exportar PDF</span></button>
+    <div class="topbar-right">
+      <div class="status-pill" title="Seus dados ficam salvos automaticamente neste dispositivo">
+        <span class="dot" id="saveDot"></span>
+        <span id="saveLabel">pronto</span>
+      </div>
+
+      <div class="header-menu-container">
+        <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu de ações">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu">
+          <div class="menu-actions">
+            <button class="btn ghost" id="btnSample" title="Carregar exemplo"><span class="ic">✎</span><span class="label">Exemplo</span></button>
+            <button class="btn ghost" id="btnExportJson" title="Exportar dados (.json)"><span class="ic">⭳</span><span class="label">Exportar dados</span></button>
+            <button class="btn ghost" id="btnImportJson" title="Importar dados"><span class="ic">⭱</span><span class="label">Importar</span></button>
+            <input type="file" id="fileImportJson" accept="application/json,.json" style="display:none;">
+            <button class="btn danger" id="btnReset" title="Limpar tudo"><span class="ic">⟲</span><span class="label">Limpar</span></button>
+            <button class="btn primary-cta" id="btnExportPdf" title="Exportar PDF"><span class="ic">⭳</span><span class="label">Exportar PDF</span></button>
+          </div>
         </div>
       </div>
     </div>
-  </header>
+  </div>
+</header>
 
+<div id="app">
   <div class="layout">
     <nav class="tabs" id="tabs"></nav>
     <main class="content" id="content"></main>
   </div>
-  <footer class="appfoot">
-    SAF-PP - ferramenta de apoio à decisão para projetos rurais. Não substitui a avaliação de um técnico ou consultor financeiro qualificado.
-  </footer>
 
+  <footer class="appfoot">
+    SAF-PP — ferramenta de apoio à decisão para projetos rurais. Não substitui a avaliação de um técnico ou consultor financeiro qualificado.
+  </footer>
 </div>
+
 <script src="app.js"></script>
 </body>
 </html>
