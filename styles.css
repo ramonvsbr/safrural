@@ -116,58 +116,43 @@ html,body{min-height:100%;}
   padding: 13px 26px;
 }
 
+/* Container principal da marca */
 .brand {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 13px;
-  min-width:0;
+  align-items: center; /* Alinha verticalmente a imagem e o texto */
+  gap: 12px;           /* Espaçamento entre a logo e o texto */
 }
 
+/* Área do ícone/logo */
 .brand-mark {
-  flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: linear-gradient(145deg, var(--green-soft), var(--green));
-  color: #F5FBF8;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 16px -4px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+  width: 40px;          /* Ajuste o tamanho da caixa se necessário */
+  height: 40px;
+  flex-shrink: 0;       /* Evita que a imagem encolha em telas menores */
 }
 
-.brand-mark svg {
-  width: 22px;
-  height: 22px;
+/* Propriedades da nova imagem */
+.brand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;  /* Preserva as proporções da logo sem esticar */
+  display: block;
 }
 
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width:0;
-}
-
+/* Estilização do bloco de texto */
 .brand-text h1 {
-  font-size: 16.5px;
-  line-height: 1.25;
-  letter-spacing: -.005em;
-  text-align: left;
-  color: #F7FAFC;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  max-width:56vw;
+  margin: 0;
+  font-size: 1.2rem;    /* Ajuste o tamanho do título conforme seu layout */
+  line-height: 1.2;
+  color: #ffffff
 }
 
 .brand-text .sub {
-  font-size: 11.5px;
-  color: rgba(230,236,246,0.68);
-  margin-top: 2px;
-  text-align: left;
-  font-weight: 500;
-  white-space:nowrap;
+  font-size: 0.75rem;   /* Ajuste o tamanho do subtítulo */
+  opacity: 0.8;
+  color: #ffffff
 }
 
 .topbar-right{
