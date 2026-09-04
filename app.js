@@ -11,9 +11,9 @@ function defaultState(){
   uidN = 1;
   return {
     meta:{
-      produtor:"Produtor(a) / Associação Rural",
-      local:"Sertão de Pernambuco",
-      atividade:"Ovinocultura (Ovinos)",
+      produtor:"Maria das Dores",
+      local:"Zona Rural de Petrolina - PE",
+      atividade:"Avicultura Caipira (ovos e frango)",
       beneficiarios:1,
       data: new Date().toISOString().slice(0,10),
       tipoProjeto:"zero"
@@ -21,33 +21,32 @@ function defaultState(){
     premissas:{
       impostoReceita:3,
       tma:10,
-      anoAnalise:5,
-      mesesGiro:3,
+      anoAnalise:3,
+      mesesGiro:1,
       folgaTirMinima:3,
       paybackAlerta:4
     },
     investimentos:[
-      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Galpão e baias",origem:"existente",quantidade:1,valorUnit:50000,vidaTotal:10,anosUso:4},
-      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Piquetes",origem:"existente",quantidade:1,valorUnit:15000,vidaTotal:15,anosUso:4},
-      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Triturador de palma",origem:"existente",quantidade:1,valorUnit:5770,vidaTotal:8,anosUso:4},
-      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Misturador de ração",origem:"existente",quantidade:1,valorUnit:9970,vidaTotal:8,anosUso:3},
-      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Cerca elétrica (a adquirir)",origem:"novo_proprio",quantidade:1,valorUnit:3200,vidaTotal:10,anosUso:0}
+      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Galinheiro (madeira e tela)",origem:"novo_financiado",quantidade:1,valorUnit:4000,vidaTotal:10,anosUso:0},
+      {id:uid('inv'),categoria:"Obras e Instalações",descricao:"Cercado para pastejo das aves",origem:"novo_financiado",quantidade:1,valorUnit:1200,vidaTotal:8,anosUso:0},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Comedouros e bebedouros",origem:"novo_financiado",quantidade:10,valorUnit:60,vidaTotal:5,anosUso:0},
+      {id:uid('inv'),categoria:"Equipamentos e Máquinas",descricao:"Chocadeira/incubadora pequena",origem:"novo_financiado",quantidade:1,valorUnit:900,vidaTotal:6,anosUso:0}
     ],
     financiamentos:[
-      {id:uid('fin'),descricao:"Pronaf — parcelas em andamento (trator)",saldoDevedor:8000,percJuros:25,parcelas:{1:2000,2:2000,3:2000,4:2000,5:0}}
+      {id:uid('fin'),descricao:"Pronaf B — custeio inicial",saldoDevedor:8000,percJuros:0.5,parcelas:{1:0,2:0,3:0,4:1165.83,5:1165.83},prazoAnos:"10",carenciaAnos:"3"}
     ],
     custos:[
-      {id:uid('cst'),descricao:"Ração / suplementação (palma, milho)",tipo:"Variável",valores:{1:9000,2:9200,3:9400,4:9600,5:9800}},
-      {id:uid('cst'),descricao:"Sanidade animal (vacinas, vermífugos)",tipo:"Variável",valores:{1:1800,2:1800,3:1900,4:1900,5:2000}},
-      {id:uid('cst'),descricao:"Mão de obra contratada",tipo:"Fixo",valores:{1:6000,2:6000,3:6300,4:6300,5:6600}},
-      {id:uid('cst'),descricao:"Energia e combustível",tipo:"Fixo",valores:{1:2400,2:2400,3:2500,4:2500,5:2600}}
+      {id:uid('cst'),descricao:"Ração e milho",tipo:"Variável",valores:{1:3600,2:3700,3:3800,4:3900,5:4000}},
+      {id:uid('cst'),descricao:"Sanidade (vacinas, vermífugos)",tipo:"Variável",valores:{1:400,2:400,3:420,4:420,5:440}},
+      {id:uid('cst'),descricao:"Energia elétrica",tipo:"Fixo",valores:{1:600,2:600,3:620,4:620,5:640}},
+      {id:uid('cst'),descricao:"Manutenção do galinheiro/cercado",tipo:"Fixo",valores:{1:300,2:300,3:320,4:320,5:340}}
     ],
     capitalGiro:{modo:"auto",valorManual:0},
     receitas:[
-      {id:uid('rec'),produto:"Animal vivo (venda)",unidade:"Und.",percAutoconsumo:0,
-        quantidades:{1:60,2:60,3:62,4:62,5:65}, precos:{1:500,2:510,3:510,4:520,5:520}},
-      {id:uid('rec'),produto:"Animais para genética",unidade:"Und.",percAutoconsumo:0,
-        quantidades:{1:20,2:20,3:20,4:20,5:22}, precos:{1:5000,2:5000,3:5100,4:5100,5:5200}}
+      {id:uid('rec'),produto:"Ovos caipiras (dúzia)",unidade:"Dz.",percAutoconsumo:10,
+        quantidades:{1:180,2:200,3:210,4:220,5:230}, precos:{1:8,2:8,3:8.5,4:8.5,5:9}},
+      {id:uid('rec'),produto:"Frango caipira vivo",unidade:"Und.",percAutoconsumo:5,
+        quantidades:{1:120,2:140,3:150,4:160,5:170}, precos:{1:32,2:33,3:35,4:35,5:37}}
     ],
     cenarios:{ otimistaReceita:10, otimistaCusto:10, pessimistaReceita:10, pessimistaCusto:10 }
   };
@@ -997,15 +996,15 @@ function renderFinanc(){
 
     html += '<tr>' +
       '<td class="txt" style="padding: 6px;"><input type="text" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.descricao" value="' + esc(f.descricao) + '"></td>' +
-      '<td style="padding: px;"><input type="number" step="0.01" min="0" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.saldoDevedor" value="' + f.saldoDevedor + '"></td>' +
-      '<td style="padding: 6px;"><input type="number" step="0.01" min="0" max="100" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.percJuros" value="' + (f.percJuros != null ? f.percJuros : 0) + '"></td>' +
+      '<td style="padding: px;"><input type="number" step="1" min="0" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.saldoDevedor" value="' + f.saldoDevedor + '"></td>' +
+      '<td style="padding: 6px;"><input type="number" step="0.1" min="0" max="100" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.percJuros" value="' + (f.percJuros != null ? f.percJuros : 0) + '"></td>' +
       '<td style="padding: 6px;"><select style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.prazoAnos">' +
         opcoesAnos.map(a => '<option value="' + a + '" ' + (f.prazoAnos == a ? 'selected' : '') + '>' + a + '</option>').join('') +
       '</select></td>' +
       '<td style="padding: 6px;"><select style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.carenciaAnos">' +
         opcoesCarencia.map(c => '<option value="' + c + '" ' + (f.carenciaAnos == c ? 'selected' : '') + '>' + (c === 0 ? 'Sem carência' : c + '') + '</option>').join('') +
       '</select></td>' +
-      '<td style="padding: 6px;"><input type="number" step="0.01" min="0" max="100" placeholder="0" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.bonusAdimplencia" value="' + (f.bonusAdimplencia != null ? f.bonusAdimplencia : 0) + '"></td>' +
+      '<td style="padding: 6px;"><input type="number" step="0.1" min="0" max="100" placeholder="0" style="width: 100%; box-sizing: border-box; padding: 6px 8px;" data-bind="financiamentos.' + f.id + '.bonusAdimplencia" value="' + (f.bonusAdimplencia != null ? f.bonusAdimplencia : 0) + '"></td>' +
       YEARS.map(y => '<td class="mono" style="padding: 8px 10px; text-align: right;">' + fmtR$(f.parcelas[y] || 0) + '</td>').join('') +
       '<td class="mono" style="padding: 8px 10px; text-align: right;"><b>' + fmtR$(totalF) + '</b></td>' +
       '<td class="row-actions" style="padding: 6px; text-align: center;"><button class="icon-btn" data-action="del-fin" data-id="' + f.id + '">✕</button></td>' +
