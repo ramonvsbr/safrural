@@ -799,6 +799,8 @@ function renderDashboard(){
     '<li>Novo investimento com recursos próprios (Ano 0): <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0))+'</b></li>'+
     '<li>Novo investimento financiado: <b>'+fmtR$(inv.novoFinanciado)+'</b></li>'+
     '<li>Capital de giro estimado: <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase))+'</b></li>'+
+    '<li>Depreciação anual total: <b>'+fmtR$(inv.deprecTotal)+'</b> (custo contábil, não sai do caixa)</li>'+
+    '<li>Reposição de bens prevista dentro dos 5 anos: '+repoList(inv.reposicoes)+'</li>'+
     '</ul></div>';
 
   html += '</div>';
