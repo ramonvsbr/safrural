@@ -535,40 +535,114 @@ footer.appfoot{
   .status-pill span:not(.dot){display:none;}
   .hamburger-btn{width:34px;height:34px;}
 
-  /* sidebar vira faixa horizontal de abas roláveis, no topo */
-  .layout{flex-direction:column;gap:10px;align-items:stretch;margin-top:14px;}
-  nav.tabs{
-    width:100%;flex:0 0 auto;flex-direction:row;position:static;
-    max-height:none;overflow-y:visible;
-    overflow-x:auto;-webkit-overflow-scrolling:touch;gap:6px;
-    padding:8px;margin-bottom:0;scrollbar-width:thin;
-    background:var(--card);border-radius:14px;
-  }
-  .tab-group{display:contents;}
-  .tab-group-label{display:none;}
-  .tab-group + .tab-group{margin-top:0;padding-top:0;border-top:none;}
-  nav.tabs a{
-    flex:0 0 auto;white-space:nowrap;border:1px solid var(--line-soft);border-radius:999px;
-    padding:9px 14px;font-size:13px;scroll-snap-align:start;background:var(--card);
-  }
-  nav.tabs{scroll-snap-type:x proximity;}
-  nav.tabs a.active{border-color:var(--green-dark);}
+/* Sidebar vira faixa horizontal de abas roláveis, no topo */
+.layout {
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  margin-top: 14px;
+}
 
-  main.content{padding:18px 15px 26px;border-radius:14px;min-height:0;}
+nav.tabs {
+  width: 100%;
+  flex: 0 0 auto;
+  flex-direction: row;
+  position: static;
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  gap: 6px;
+  padding: 8px;
+  margin-bottom: 0;
+  background: var(--card);
+  border-radius: 14px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge antigo */
+}
 
-  .kpi-grid{grid-template-columns:1fr 1fr;gap:9px;}
-  .kpi{padding:12px 13px 11px;}
-  .kpi .val{font-size:19px;}
+/* Oculta a barra de rolagem no Chrome, Safari, Edge e Opera */
+nav.tabs::-webkit-scrollbar {
+  display: none;
+}
 
-  .grid.g2, .grid.g3, .grid.g4{grid-template-columns:1fr;}
+.tab-group {
+  display: contents;
+}
 
-  .two-col{grid-template-columns:1fr;}
+.tab-group-label {
+  display: none;
+}
 
-  .stamp-wrap{justify-content:flex-start;}
-  .stamp{font-size:12px;padding:9px 15px;}
+.tab-group + .tab-group {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
 
-  table.data{font-size:11.8px;}
-  table.data th, table.data td{padding:7px 6px;}
+nav.tabs a {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 13px;
+  scroll-snap-align: start;
+  background: var(--card);
+}
+
+nav.tabs a.active {
+  border-color: var(--green-dark);
+}
+
+main.content {
+  padding: 18px 15px 26px;
+  border-radius: 14px;
+  min-height: 0;
+}
+
+.kpi-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.kpi {
+  padding: 12px 13px 11px;
+}
+
+.kpi .val {
+  font-size: 19px;
+}
+
+.grid.g2, 
+.grid.g3, 
+.grid.g4 {
+  grid-template-columns: 1fr;
+}
+
+.two-col {
+  grid-template-columns: 1fr;
+}
+
+.stamp-wrap {
+  justify-content: flex-start;
+}
+
+.stamp {
+  font-size: 12px;
+  padding: 9px 15px;
+}
+
+table.data {
+  font-size: 11.8px;
+}
+
+table.data th, 
+table.data td {
+  padding: 7px 6px;
+}
 
   /* alvos de toque maiores */
   .icon-btn{width:30px;height:30px;font-size:14px;}
