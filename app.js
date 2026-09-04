@@ -1344,180 +1344,438 @@ function exportPDF(){
   const doc = new jsPDF({unit:'pt', format:'a4'});
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 40;
-  const marginBottom = 46;
+  const marginX = 42;
+  const marginBottom = 50;
   let y = 46;
 
-  const C_INK    = [42,32,22];
-  const C_SOFT   = [91,76,56];
-  const C_FAINT  = [140,122,94];
-  const C_GREEN  = [63,90,50];
-  const C_GREEND = [44,64,33];
-  const C_OCHRE  = [180,121,30];
-  const C_BRICK  = [138,58,43];
-  const C_PAPER2 = [222,203,160];
-  const C_CARD   = [247,241,222];
-  const C_LINE   = [205,187,140];
+  /* Paleta idêntica à do webapp (ver :root em styles.css) — o relatório é
+     pensado como uma extensão visual do sistema, não um documento à parte. */
+  const C_INK        = [16,24,40];      // --ink
+  const C_SOFT       = [74,84,104];     // --ink-soft
+  const C_FAINT      = [136,145,165];   // --ink-faint
+  const C_LINE       = [215,220,232];   // --line
+  const C_LINE_SOFT  = [230,233,242];   // --line-soft
+  const C_PAPER      = [238,241,247];   // --paper
+  const C_PAPER2     = [226,231,241];   // --paper-2
+  const C_CARD       = [255,255,255];   // --card
+  const C_CARD2      = [246,248,252];   // --card-2
+  const C_GREEN      = [14,143,118];    // --green (esmeralda)
+  const C_GREEN_DARK = [11,59,92];      // --green-dark (azul-marinho)
+  const C_GREEN_SOFT = [87,183,158];    // --green-soft
+  const C_OCHRE      = [200,145,46];    // --ochre
+  const C_OCHRE_DARK = [150,105,14];    // --ochre-dark
+  const C_BRICK      = [193,59,51];     // --brick
+  const C_BRICK_SOFT = [226,142,130];   // --brick-soft
 
   const scn = buildScenario();
   const y5 = clamp(num(state.premissas.anoAnalise)||5,1,5);
   const pe = pontoEquilibrio(scn);
   const scnOtim = buildScenario({receita: 1+num(state.cenarios.otimistaReceita)/100, custo: 1-num(state.cenarios.otimistaCusto)/100});
   const scnPess = buildScenario({receita: 1-num(state.cenarios.pessimistaReceita)/100, custo: 1+num(state.cenarios.pessimistaCusto)/100});
+  const semaf = calcSemaforo(scn);
+  const andamento = isAndamento();
 
-  function ensureSpace(h){
-    if(y + h > pageH - marginBottom){ doc.addPage(); y = 46; }
-  }
-  function sectionTitle(txt, eyebrow){
-    ensureSpace(34);
-    if(eyebrow){
-      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_OCHRE);
-      doc.text(eyebrow.toUpperCase(), marginX, y);
-      y += 12;
+  let lastSection = 'Capa';
+
+  /* ---------- utilitários de desenho ---------- */
+  function interpColor(stops, t){
+    for(let i=0;i<stops.length-1;i++){
+      if(t>=stops[i].pos && t<=stops[i+1].pos){
+        const lt = (t-stops[i].pos)/(stops[i+1].pos-stops[i].pos);
+        return [0,1,2].map(k=> Math.round(stops[i].color[k] + (stops[i+1].color[k]-stops[i].color[k])*lt));
+      }
     }
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...C_GREEND);
-    doc.text(txt, marginX, y);
-    y += 6;
+    return stops[stops.length-1].color;
+  }
+  function gradientBar(x0,y0,w,h,stops){
+    const steps = 110;
+    const stepW = w/steps;
+    for(let i=0;i<steps;i++){
+      const t = i/(steps-1);
+      const c = interpColor(stops,t);
+      doc.setFillColor(c[0],c[1],c[2]);
+      doc.rect(x0 + i*stepW, y0, stepW+0.6, h, 'F');
+    }
+  }
+  const BRAND_GRADIENT = [{pos:0,color:C_GREEN_DARK},{pos:0.5,color:C_GREEN},{pos:1,color:C_OCHRE}];
+  function paperBg(){
+    doc.setFillColor(...C_PAPER);
+    doc.rect(0,0,pageW,pageH,'F');
+  }
+  function topStripe(){
+    gradientBar(0,0,pageW,4,BRAND_GRADIENT);
+  }
+  function brandMark(x,yTop,size,dark){
+    // "logotipo" simplificado: selo arredondado com as iniciais SAF, no
+    // mesmo espírito do ícone circular usado no cabeçalho do webapp.
+    size = size||20;
+    doc.setFillColor(...(dark?C_GREEN_DARK:C_CARD));
+    doc.roundedRect(x, yTop, size, size, size*0.32, size*0.32, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(size*0.36);
+    doc.setTextColor(...(dark?[255,255,255]:C_GREEN_DARK));
+    doc.text('SAF', x+size/2, yTop+size/2+size*0.13, {align:'center'});
+    doc.setTextColor(...C_INK);
+  }
+  function runningHeader(){
+    brandMark(marginX, 12, 16, true);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.4); doc.setTextColor(...C_GREEN_DARK);
+    doc.text('SAF Rural', marginX+22, 22);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...C_FAINT);
+    doc.text('·  Análise Financeira do Empreendimento Rural', marginX+68, 22);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.6); doc.setTextColor(...C_OCHRE_DARK);
+    doc.text(lastSection.toUpperCase(), pageW-marginX, 22, {align:'right'});
+    doc.setDrawColor(...C_LINE); doc.setLineWidth(0.7);
+    doc.line(marginX, 32, pageW-marginX, 32);
+    doc.setTextColor(...C_INK);
+  }
+  function newPage(){
+    doc.addPage();
+    paperBg();
+    topStripe();
+    runningHeader();
+    y = 54;
+  }
+  function ensureSpace(h){
+    if(y + h > pageH - marginBottom){ newPage(); }
+  }
+  function cardShadow(x,yTop,w,h,r){
+    // sombra suave (dois retângulos deslocados) para aproximar o box-shadow do webapp
+    doc.setFillColor(214,219,231);
+    doc.roundedRect(x+1.2, yTop+2.2, w, h, r, r, 'F');
+  }
+
+  /* ---------- tipografia de seção ---------- */
+  function sectionTitle(txt, tabNum, eyebrow){
+    ensureSpace(40);
+    lastSection = txt;
+    if(tabNum){
+      doc.setFillColor(...C_GREEN_DARK);
+      doc.roundedRect(marginX, y-15, 24, 24, 6, 6, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(255,255,255);
+      doc.text(String(tabNum), marginX+12, y+1, {align:'center'});
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_OCHRE_DARK);
+      doc.text((eyebrow||'ETAPA DO SISTEMA').toUpperCase(), marginX+34, y-8);
+      doc.setFont('helvetica','bold'); doc.setFontSize(13.5); doc.setTextColor(...C_GREEN_DARK);
+      doc.text(txt, marginX+34, y+7);
+    } else {
+      if(eyebrow){
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...C_OCHRE_DARK);
+        doc.text(eyebrow.toUpperCase(), marginX, y-11);
+      }
+      doc.setFont('helvetica','bold'); doc.setFontSize(13.5); doc.setTextColor(...C_GREEN_DARK);
+      doc.text(txt, marginX, y+3);
+    }
+    y += 14;
     doc.setDrawColor(...C_LINE); doc.setLineWidth(1);
     doc.line(marginX, y, pageW-marginX, y);
-    y += 16;
+    y += 18;
     doc.setTextColor(...C_INK);
   }
   function subTitle(txt){
     ensureSpace(18);
+    doc.setFillColor(...C_GREEN_SOFT);
+    doc.rect(marginX, y-8, 3, 10, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...C_GREEN);
-    doc.text(txt, marginX, y);
-    y += 14;
+    doc.text(txt, marginX+8, y);
+    y += 15;
     doc.setTextColor(...C_INK);
   }
   function note(txt){
     ensureSpace(24);
-    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...C_SOFT);
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.4); doc.setTextColor(...C_SOFT);
     const lines = doc.splitTextToSize(txt, pageW-2*marginX);
     doc.text(lines, marginX, y);
     y += lines.length*11 + 8;
     doc.setTextColor(...C_INK);
   }
+  function calloutNote(txt){
+    // caixa de aviso com borda esquerda âmbar — espelha ".help-callout" do webapp
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.6);
+    const lines = doc.splitTextToSize(txt, pageW-2*marginX-18);
+    const h = lines.length*11 + 14;
+    ensureSpace(h+10);
+    doc.setFillColor(...C_CARD2);
+    doc.roundedRect(marginX, y, pageW-2*marginX, h, 4, 4, 'F');
+    doc.setFillColor(...C_OCHRE);
+    doc.rect(marginX, y, 3, h, 'F');
+    doc.setTextColor(...C_SOFT);
+    doc.text(lines, marginX+13, y+15);
+    y += h + 12;
+    doc.setTextColor(...C_INK);
+  }
   function kvGrid(pairs, cols){
+    // Layout empilhado (rótulo pequeno em cima, valor em destaque embaixo),
+    // como um mini "stat" — evita o corte de texto que acontecia quando
+    // rótulo e valor disputavam a mesma linha em colunas estreitas.
     cols = cols||2;
+    const gapX = 14;
     const colW = (pageW-2*marginX)/cols;
-    ensureSpace(Math.ceil(pairs.length/cols)*16+6);
-    doc.setFontSize(9);
-    pairs.forEach((p,i)=>{
-      const col = i%cols, row = Math.floor(i/cols);
-      const x = marginX + col*colW;
-      const yy = y + row*16;
-      doc.setFont('helvetica','bold'); doc.setTextColor(...C_SOFT);
-      doc.text(p[0]+':', x, yy);
-      doc.setFont('helvetica','normal'); doc.setTextColor(...C_INK);
-      doc.text(String(p[1]), x+ Math.min(150,colW*0.55), yy);
-    });
-    y += Math.ceil(pairs.length/cols)*16 + 10;
+    const textW = colW - gapX;
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.3);
+    const wrapped = pairs.map(p=>({
+      label: doc.splitTextToSize(String(p[0]).toUpperCase(), textW),
+      value: String(p[1])
+    }));
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.4);
+    wrapped.forEach(w=>{ w.valueLines = doc.splitTextToSize(w.value, textW); });
+
+    const rows = Math.ceil(wrapped.length/cols);
+    const rowHeights = [];
+    for(let r=0;r<rows;r++){
+      let maxH = 0;
+      for(let c=0;c<cols;c++){
+        const idx = r*cols+c;
+        if(idx>=wrapped.length) continue;
+        const h = 9 + wrapped[idx].label.length*8.4 + wrapped[idx].valueLines.length*11.5;
+        if(h>maxH) maxH = h;
+      }
+      rowHeights.push(maxH);
+    }
+    const rowGap = 10;
+    const totalH = rowHeights.reduce((a,b)=>a+b,0) + rowGap*rows;
+    ensureSpace(totalH+6);
+
+    let cy = y;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const idx = r*cols+c;
+        if(idx>=wrapped.length) continue;
+        const item = wrapped[idx];
+        const x = marginX + c*colW;
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.3); doc.setTextColor(...C_FAINT);
+        doc.text(item.label, x, cy+7);
+        const labelH = item.label.length*8.4;
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.4); doc.setTextColor(...C_INK);
+        doc.text(item.valueLines, x, cy+7+labelH+4);
+      }
+      cy += rowHeights[r] + rowGap;
+    }
+    y = cy + 2;
+    doc.setTextColor(...C_INK);
   }
   function kpiRow(items){
     const cols = items.length;
     const gap = 8;
     const w = (pageW-2*marginX-gap*(cols-1))/cols;
-    const h = 46;
-    ensureSpace(h+10);
+    const h = 56;
+    ensureSpace(h+12);
     items.forEach((it,i)=>{
       const x = marginX + i*(w+gap);
+      const accent = it[2] ? C_BRICK : C_GREEN;
+      cardShadow(x,y,w,h,5);
       doc.setDrawColor(...C_LINE); doc.setFillColor(...C_CARD);
-      doc.roundedRect(x, y, w, h, 2, 2, 'FD');
-      doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...C_SOFT);
-      const lbl = doc.splitTextToSize(it[0].toUpperCase(), w-10);
-      doc.text(lbl, x+7, y+12);
-      doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
-      doc.setTextColor(...(it[2]? C_BRICK : C_GREEND));
-      doc.text(String(it[1]), x+7, y+h-10);
+      doc.roundedRect(x, y, w, h, 5, 5, 'FD');
+      doc.setFillColor(...accent);
+      doc.roundedRect(x, y, 4, h, 2, 2, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(6.9); doc.setTextColor(...C_SOFT);
+      const lbl = doc.splitTextToSize(it[0].toUpperCase(), w-16);
+      doc.text(lbl, x+12, y+15);
+      doc.setFont('helvetica','bold'); doc.setFontSize(13);
+      doc.setTextColor(...(it[2] ? C_BRICK : C_GREEN_DARK));
+      const valLines = doc.splitTextToSize(String(it[1]), w-16);
+      doc.text(valLines, x+12, y+h-14);
     });
-    y += h + 14;
+    y += h + 16;
   }
   function table(head, body, opts){
     opts = opts||{};
     doc.autoTable(Object.assign({
       startY: y,
-      margin:{left:marginX, right:marginX, bottom:marginBottom},
+      margin:{left:marginX, right:marginX, bottom:marginBottom, top:54},
       head:[head],
       body: body,
       theme:'grid',
-      styles:{font:'helvetica', fontSize:8, textColor:C_INK, lineColor:C_LINE, lineWidth:0.5, cellPadding:4},
-      headStyles:{fillColor:C_PAPER2, textColor:C_INK, fontStyle:'bold', halign:'center', fontSize:7.6},
-      alternateRowStyles:{fillColor:[250,246,233]},
-      didDrawPage:function(){ /* footers added manually at end */ }
+      styles:{font:'helvetica', fontSize:8, textColor:C_INK, lineColor:C_LINE_SOFT, lineWidth:0.5, cellPadding:4.2},
+      headStyles:{fillColor:C_GREEN_DARK, textColor:[255,255,255], fontStyle:'bold', halign:'center', fontSize:7.6},
+      alternateRowStyles:{fillColor:C_CARD2},
+      didDrawPage:function(data){
+        // Só redesenha a identidade visual quando a PRÓPRIA tabela precisou
+        // quebrar em mais de uma página (data.pageNumber > 1) — nunca na
+        // página onde a tabela começou, pois ela já está decorada por
+        // newPage() e já contém conteúdo (título de seção, kvGrid, etc.)
+        // desenhado ANTES da tabela. Repintar ali apagaria esse conteúdo.
+        if(data && data.pageNumber > 1){
+          paperBg(); topStripe(); runningHeader();
+        }
+      }
     }, opts));
     y = doc.lastAutoTable.finalY + 16;
   }
-  /* ---------- CAPA ---------- */
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_OCHRE);
-  doc.text('CADERNO DE CAMPO DIGITAL — ADAPTADO DO SAF-PP (MELONI, 2017)', marginX, y);
-  y += 22;
-  doc.setFont('helvetica','bold'); doc.setFontSize(19); doc.setTextColor(...C_INK);
-  doc.text('Análise Financeira do Empreendimento Rural', marginX, y);
-  y += 22;
-  doc.setDrawColor(...C_INK); doc.setLineWidth(1.4);
-  doc.line(marginX, y, pageW-marginX, y);
-  y += 22;
 
+  /* ---------- cartão do semáforo de viabilidade ---------- */
+  function semaforoCard(scnLocal, compact){
+    const s = calcSemaforo(scnLocal);
+    const titleColor = s.cor==='verde'?C_GREEN_DARK : s.cor==='amarelo'?C_OCHRE_DARK : s.cor==='vermelho'?C_BRICK : C_FAINT;
+    const accentColor = s.cor==='verde'?C_GREEN_SOFT : s.cor==='amarelo'?C_OCHRE : s.cor==='vermelho'?C_BRICK_SOFT : C_LINE;
+    const w = pageW-2*marginX;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.6);
+    const msgLines = doc.splitTextToSize(s.msg, w-108);
+    const h = Math.max(compact?46:0, 24 + msgLines.length*11 + 10);
+    ensureSpace(h+14);
+    cardShadow(marginX,y,w,h,6);
+    doc.setFillColor(...C_CARD); doc.setDrawColor(...C_LINE); doc.setLineWidth(0.8);
+    doc.roundedRect(marginX, y, w, h, 6, 6, 'FD');
+    doc.setFillColor(...accentColor);
+    doc.roundedRect(marginX, y+2, 4, h-4, 2, 2, 'F');
+    // "luzes" do semáforo, no canto direito, espelhando o widget do app
+    const luzOrdem = [['vermelho',C_BRICK],['amarelo',C_OCHRE],['verde',C_GREEN_SOFT]];
+    const lx = marginX + w - 74;
+    doc.setFillColor(...C_INK);
+    doc.roundedRect(lx, y+h/2-11, 60, 22, 11, 11, 'F');
+    luzOrdem.forEach((L,i)=>{
+      const on = L[0]===s.cor;
+      doc.setFillColor(...(on? L[1] : [70,76,92]));
+      doc.circle(lx+16+i*15, y+h/2, 5.5, 'F');
+    });
+    doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...titleColor);
+    doc.text(s.titulo, marginX+18, y+19);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.6); doc.setTextColor(...C_SOFT);
+    doc.text(msgLines, marginX+18, y+34);
+    y += h + 14;
+    doc.setTextColor(...C_INK);
+  }
+
+  /* ---------- gráfico de fluxo de caixa líquido (ano 0 a ano 5) ---------- */
+  function fluxoLiquidoChart(cashflows){
+    const labels = ['Ano 0','Ano 1','Ano 2','Ano 3','Ano 4','Ano 5'];
+    const posArea = 96, negArea = 48;
+    const topPad = 16, bottomPad = 14, axisRow = 16;
+    const totalH = topPad + posArea + negArea + bottomPad + axisRow;
+    ensureSpace(totalH + 14);
+
+    const zoneW = pageW - 2*marginX;
+    const n = cashflows.length;
+    const gap = 10;
+    const colW = (zoneW - gap*(n-1))/n;
+    const barW = Math.min(42, colW*0.5);
+
+    const chartTop = y;
+    const baseline = chartTop + topPad + posArea;
+
+    const maxPos = Math.max(1, ...cashflows.map(v=> v>0? v : 0));
+    const maxNeg = Math.max(1, ...cashflows.map(v=> v<0? -v : 0));
+
+    // fundo suave da área do gráfico + linhas de grade horizontais
+    doc.setFillColor(...C_CARD2);
+    doc.roundedRect(marginX, chartTop, zoneW, totalH-axisRow, 6, 6, 'F');
+    doc.setDrawColor(...C_LINE_SOFT); doc.setLineWidth(0.5);
+    [0.25,0.5,0.75].forEach(f=>{
+      const gy = baseline - posArea*f;
+      doc.line(marginX+6, gy, marginX+zoneW-6, gy);
+    });
+
+    cashflows.forEach((v,i)=>{
+      const cx = marginX + i*(colW+gap) + colW/2;
+      const bx = cx - barW/2;
+      const isNeg = v<0;
+      const scale = isNeg ? negArea/maxNeg : posArea/maxPos;
+      const h = Math.max(3, Math.abs(v)*scale);
+      doc.setFillColor(...(isNeg? C_BRICK : C_GREEN));
+      if(isNeg){
+        doc.roundedRect(bx, baseline, barW, h, 2, 2, 'F');
+        doc.rect(bx, baseline, barW, Math.min(4,h), 'F');
+      } else {
+        doc.roundedRect(bx, baseline - h, barW, h, 2, 2, 'F');
+      }
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.2); doc.setTextColor(...C_INK);
+      const valTxt = fmtR$(v);
+      const vw = doc.getTextWidth(valTxt);
+      const vx = clamp(cx - vw/2, marginX+2, pageW-marginX-vw-2);
+      if(isNeg){ doc.text(valTxt, vx, baseline + h + 11); }
+      else{ doc.text(valTxt, vx, baseline - h - 5); }
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_SOFT);
+      const lw = doc.getTextWidth(labels[i]);
+      doc.text(labels[i], cx - lw/2, chartTop + totalH - 4);
+    });
+
+    doc.setDrawColor(...C_INK); doc.setLineWidth(1.1);
+    doc.line(marginX, baseline, pageW-marginX, baseline);
+
+    y = chartTop + totalH + 12;
+    doc.setTextColor(...C_INK);
+  }
+
+  /* ================= CAPA — VISÃO GERAL DO PROJETO ================= */
+  paperBg();
+  // Faixa "hero" no mesmo degradê azul-marinho → verde → âmbar do header do webapp.
+  // Altura reduzida (era 148) para deixar a capa mais compacta.
+  const heroH = 100;              // <- diminua/aumente este valor para ajustar a altura da faixa
+  gradientBar(0,0,pageW,heroH,BRAND_GRADIENT);
+
+  // Logo do projeto, agora alinhada à ESQUERDA (em vez de centralizada no topo)
+  const heroLogoSize = 26;                 // <- tamanho do selo "SAF"
+  const heroLogoX     = marginX;           // <- posição horizontal (usa a mesma margem do resto do PDF)
+  const heroTextX     = heroLogoX + heroLogoSize + 12; // início do bloco de texto, logo após a logo
+
+  // Bloco de texto (título + subtítulo + data) alinhado à esquerda, ao lado da logo.
+  // Calculamos a altura total do bloco de texto para centralizar tudo verticalmente
+  // dentro da faixa, e para centralizar a logo em relação ao título.
+  const tituloY   = heroH/2 - 8;   // linha de base do título
+  const subtitloY = tituloY + 16;  // linha do subtítulo
+  const dataY     = subtitloY + 11; // linha da data
+  const heroLogoY = tituloY - heroLogoSize*0.62; // alinha o topo da logo com o título
+
+  brandMark(heroLogoX, heroLogoY, heroLogoSize, false);
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(255,255,255);
+  doc.text('Sistema de Análise Financeira Rural', heroTextX, tituloY);
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(226,231,241);
+  doc.text('Método SAF-PP (Meloni, 2017)', heroTextX, subtitloY);
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(226,231,241);
+  doc.text('Gerado em '+new Date().toLocaleString('pt-BR'), heroTextX, dataY);
+
+  y = heroH + 22;               // espaço abaixo da faixa antes do próximo bloco (era heroH + 28)
+  doc.setTextColor(...C_INK);
+
+  subTitle('Identificação do projeto');
   kvGrid([
     ['Produtor(a) / Associação', state.meta.produtor||'—'],
     ['Localização', state.meta.local||'—'],
     ['Atividade principal', state.meta.atividade||'—'],
     ['Nº de beneficiários(as)', String(num(state.meta.beneficiarios)||1)],
     ['Data de preenchimento', state.meta.data||'—'],
-    ['Relatório gerado em', new Date().toLocaleString('pt-BR')]
+    ['Tipo de projeto', andamento?'Em Andamento (sem novo investimento no Ano 0)':'Do Zero (com investimento inicial no Ano 0)']
   ], 2);
 
-  const semaf = calcSemaforo(scn);
-  const semafColor = semaf.cor==='verde'?C_GREEND : semaf.cor==='amarelo'?C_OCHRE : semaf.cor==='vermelho'?C_BRICK : C_FAINT;
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.setTextColor(...semafColor);
-  doc.text('◆ '+semaf.titulo.toUpperCase(), marginX, y);
-  y += 13;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C_SOFT);
-  const semafLines = doc.splitTextToSize(semaf.msg, pageW-2*marginX);
-  doc.text(semafLines, marginX, y);
-  y += semafLines.length*11 + 6;
-  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...C_FAINT);
-  doc.text(isAndamento()?'Tipo de projeto: Em Andamento (sem novo investimento inicial nem capital de giro no Ano 0)':'Tipo de projeto: Do Zero (com investimento inicial e capital de giro no Ano 0)', marginX, y);
-  y += 16;
-  doc.setTextColor(...C_INK);
+  subTitle('Resumo executivo — cenário realista (Ano '+y5+')');
+  kpiRow([
+    [LABELS.vplCurto+' (VPL)', explainVPL(scn), scn.vpl!=null&&scn.vpl<0],
+    [LABELS.tirCurto+' (TIR)', explainTIR(scn), scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
+    [LABELS.paybackCurto+' (Payback)', explainPayback(scn), scn.payback==null&&scn.fluxo0<0]
+  ]);
+  semaforoCard(scn, true);
+  note('Este documento é gerado automaticamente a partir dos dados lançados no sistema SAF Rural e reproduz, em formato de leitura e impressão, todas as etapas preenchidas no aplicativo. Não substitui a avaliação de um técnico ou consultor financeiro qualificado.');
 
-  /* ---------- PREMISSAS ---------- */
-  sectionTitle('Premissas Financeiras', 'Dados inseridos');
+  /* ================= 01 · DADOS & PREMISSAS ================= */
+  newPage();
+  sectionTitle('Dados & Premissas', '01', 'Etapa do sistema');
+  subTitle('Identificação do projeto');
+  kvGrid([
+    ['Produtor(a) / Associação', state.meta.produtor||'—'],
+    ['Localização', state.meta.local||'—'],
+    ['Atividade principal', state.meta.atividade||'—'],
+    ['Nº de beneficiários(as)', String(num(state.meta.beneficiarios)||1)],
+    ['Data de preenchimento', state.meta.data||'—'],
+    ['Tipo de projeto', andamento?'Em Andamento':'Do Zero']
+  ], 2);
+  subTitle('Premissas financeiras');
   kvGrid([
     ['Impostos/taxas sobre a receita', fmtNum(state.premissas.impostoReceita,1)+'%'],
     [LABELS.tmaCurto+' (TMA)', fmtNum(state.premissas.tma,1)+'% a.a.'],
     ['Ano de análise dos indicadores', 'Ano '+y5],
-    ['Meses de custo p/ Capital de Giro', isAndamento()?'Não aplicável (projeto em andamento)':String(state.premissas.mesesGiro)+' meses']
+    ['Meses de custo p/ Capital de Giro', andamento?'Não aplicável (projeto em andamento)':String(state.premissas.mesesGiro)+' meses'],
+    ['Folga mínima de TIR sobre a TMA (semáforo)', fmtNum(state.premissas.folgaTirMinima,1)+' p.p.'],
+    ['Payback de alerta (semáforo)', fmtNum(state.premissas.paybackAlerta,1)+' anos']
   ], 2);
+  calloutNote(andamento
+    ? 'Projeto em Andamento: a estrutura produtiva já existe e já está funcionando. O sistema não cobra novo investimento nem capital de giro no Ano 0 — a análise foca no que o negócio já gera de resultado no dia a dia.'
+    : 'Projeto do Zero: o produtor ainda vai investir para viabilizar a atividade. O sistema desconta o investimento com recursos próprios e o capital de giro necessário logo no início da análise (Ano 0).');
 
-  /* ---------- RESULTADOS — INDICADORES ---------- */
-  sectionTitle('Indicadores de Viabilidade', 'Resultados obtidos — cenário realista');
-  kpiRow([
-    [LABELS.vplCurto+' (VPL) — ao '+fmtNum(state.premissas.tma,1)+'%', explainVPL(scn), scn.vpl!=null&&scn.vpl<0],
-    [LABELS.tirCurto+' (TIR)', explainTIR(scn), scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
-    [LABELS.paybackCurto+' (Payback)', explainPayback(scn), scn.payback==null&&scn.fluxo0<0],
-    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?fmtR$(pe.valor):'Não se aplica', pe.valor==null]
-  ]);
-  subTitle('Ponto de equilíbrio — detalhamento (Ano '+y5+')');
-  kvGrid([
-    ['Custos fixos', fmtR$(pe.cf)],
-    ['Custos variáveis', fmtR$(pe.cv)],
-    ['Receita líquida', fmtR$(pe.receitaLiq)]
-  ], 3);
-  subTitle('Como o projeto está montado');
-  kvGrid([
-    ['Patrimônio já existente (sem novo desembolso)', fmtR$(scn.inv.patrimonioExistente)],
-    ['Novo investimento — recursos próprios (Ano 0)', scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0)],
-    ['Novo investimento financiado', fmtR$(scn.inv.novoFinanciado)],
-    ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase)],
-    ['Depreciação anual total', fmtR$(scn.inv.deprecTotal)],
-    ['Renda mensal / beneficiário (Ano '+y5+') — caixa + autoconsumo', fmtR$(scn.anos[y5].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios)))]
-  ], 2);
-
-  /* ---------- INVESTIMENTOS ---------- */
-  sectionTitle('Investimentos', 'Dados inseridos');
+  /* ================= 02 · INVESTIMENTOS ================= */
+  newPage();
+  sectionTitle('Investimentos', '02', 'Etapa do sistema');
   if(state.investimentos.length){
     let tNP=0,tNF=0,tEx=0,tDep=0;
     const body = state.investimentos.map(it=>{
@@ -1529,7 +1787,8 @@ function exportPDF(){
     });
     body.push(['Totais','','','','', fmtR$(tNP+tNF+tEx),'', fmtR$(tDep)]);
     table(['Descrição','Categoria','Origem','Qtd.','Valor unit.','Total','Vida útil restante','Deprec. anual'], body,
-      {columnStyles:{0:{halign:'left',cellWidth:100},2:{halign:'left'}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+      {columnStyles:{0:{halign:'left',cellWidth:98},2:{halign:'left'}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+    subTitle('Como o investimento está distribuído');
     kvGrid([
       ['Novo — recursos próprios', fmtR$(tNP)],
       ['Novo — financiado', fmtR$(tNF)],
@@ -1538,8 +1797,9 @@ function exportPDF(){
     ], 4);
   } else { note('Nenhum investimento lançado.'); }
 
-  /* ---------- FINANCIAMENTOS ---------- */
-  sectionTitle('Dívidas Ativas / Financiamentos', 'Dados inseridos');
+  /* ================= 03 · DÍVIDAS ATIVAS (FINANCIAMENTOS) ================= */
+  newPage();
+  sectionTitle('Dívidas Ativas', '03', 'Etapa do sistema · Financiamentos');
   if(state.financiamentos.length){
     const totalPorAno={1:0,2:0,3:0,4:0,5:0};
     const totalJurosPorAno={1:0,2:0,3:0,4:0,5:0};
@@ -1551,13 +1811,14 @@ function exportPDF(){
     });
     body.push(['Total por ano','','', ...YEARS.map(yy=>fmtR$(totalPorAno[yy])), '']);
     table(['Descrição','Saldo devedor','Juros na parcela', ...YEARS.map(yy=>'Ano '+yy), 'Total'], body,
-      {columnStyles:{0:{halign:'left',cellWidth:120}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
+      {columnStyles:{0:{halign:'left',cellWidth:112}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
     subTitle('Total de juros embutidos nas parcelas — despesa financeira considerada no Lucro Líquido');
     kvGrid(YEARS.map(yy=>['Ano '+yy, fmtR$(totalJurosPorAno[yy])]), 5);
   } else { note('Nenhuma dívida/financiamento lançado.'); }
 
-  /* ---------- CUSTOS ---------- */
-  sectionTitle('Custos Operacionais', 'Dados inseridos');
+  /* ================= 04 · CUSTOS OPERACIONAIS ================= */
+  newPage();
+  sectionTitle('Custos Operacionais', '04', 'Etapa do sistema');
   if(state.custos.length){
     const totalPorAno={1:0,2:0,3:0,4:0,5:0};
     const body = state.custos.map(c=>{
@@ -1569,10 +1830,11 @@ function exportPDF(){
       {columnStyles:{0:{halign:'left',cellWidth:150}}, didParseCell:function(d){ if(d.row.index===body.length-1) d.cell.styles.fontStyle='bold'; }});
   } else { note('Nenhum custo lançado.'); }
 
-  /* ---------- CAPITAL DE GIRO ---------- */
-  sectionTitle('Capital de Giro', 'Dados inseridos e resultado');
-  if(isAndamento()){
-    note('Não aplicável — Projeto em Andamento. Como a atividade já está em funcionamento, o sistema não exige capital de giro inicial no Ano 0.');
+  /* ================= 05 · CAPITAL DE GIRO ================= */
+  newPage();
+  sectionTitle('Capital de Giro', '05', 'Etapa do sistema');
+  if(andamento){
+    calloutNote('Não aplicável — Projeto em Andamento. Como a atividade já está em funcionamento, o sistema não exige capital de giro inicial no Ano 0.');
   } else {
     const {total:custoTotalAno} = calcCustosPorAno();
     const giroAuto = calcCapitalGiro(custoTotalAno[1]);
@@ -1584,8 +1846,9 @@ function exportPDF(){
     ], 2);
   }
 
-  /* ---------- RECEITAS ---------- */
-  sectionTitle('Receitas Projetadas', 'Dados inseridos');
+  /* ================= 06 · RECEITAS PROJETADAS ================= */
+  newPage();
+  sectionTitle('Receitas Projetadas', '06', 'Etapa do sistema');
   if(state.receitas.length){
     state.receitas.forEach(r=>{
       subTitle((r.produto||'Produto')+'  ·  '+(r.unidade||'')+'  ·  autoconsumo: '+fmtNum(r.percAutoconsumo,1)+'%');
@@ -1604,8 +1867,9 @@ function exportPDF(){
     ], {columnStyles:{0:{halign:'left',cellWidth:160}}});
   } else { note('Nenhuma receita lançada.'); }
 
-  /* ---------- FLUXO DE CAIXA ---------- */
-  sectionTitle('Fluxo de Caixa', 'Resultado calculado');
+  /* ================= 07 · FLUXO DE CAIXA ================= */
+  newPage();
+  sectionTitle('Fluxo de Caixa', '07', 'Etapa do sistema · Resultado calculado');
   table(['Ano 0',''], [
     ['(–) Investimento novo (recursos próprios)', fmtR$(-scn.novoProprioAno0)],
     ['(–) Capital de giro inicial', fmtR$(-scn.giroBase)],
@@ -1625,16 +1889,49 @@ function exportPDF(){
   let acc = scn.fluxo0;
   const accRow = YEARS.map(yy=>{ acc+=scn.anos[yy].fluxoCaixa; return acc; });
   const bodyFluxo = rows.map(r=>[r[0], ...YEARS.map(yy=>fmtR$(r[1](yy)))]);
-  bodyFluxo.push(['Saldo de caixa acumulado', ...accRow.map(fmtR$)]);
+  bodyFluxo.push(['Saldo de caixa acumulado', ...accRow.map(v=>fmtR$(v))]);
   table(['Item', ...YEARS.map(yy=>'Ano '+yy)], bodyFluxo,
-    {columnStyles:{0:{halign:'left',cellWidth:180}},
+    {columnStyles:{0:{halign:'left',cellWidth:170}},
      didParseCell:function(d){
        const boldRows = [2,7,8];
        if(boldRows.includes(d.row.index)) d.cell.styles.fontStyle='bold';
      }});
 
-  /* ---------- INDICADORES POR CENÁRIO ---------- */
-  sectionTitle('Demonstrativo por Cenário — Ano '+y5, 'Resultado calculado · análise de sensibilidade');
+  subTitle('Fluxo de Caixa Líquido — Ano 0 a Ano 5');
+  fluxoLiquidoChart(scn.cashflows);
+  note('Barras em verde indicam anos com fluxo de caixa positivo; em vermelho, negativo (tipicamente o Ano 0, quando há investimento e capital de giro inicial). O Ano '+YEARS[YEARS.length-1]+' inclui a recuperação do capital de giro, quando aplicável.');
+
+  /* ================= 08 · INDICADORES & CENÁRIOS ================= */
+  newPage();
+  sectionTitle('Indicadores & Cenários', '08', 'Etapa do sistema · Resultado calculado');
+  semaforoCard(scn);
+  subTitle('Indicadores de viabilidade — cenário realista (Ano '+y5+')');
+  kpiRow([
+    [LABELS.vplCurto+' (VPL) — ao '+fmtNum(state.premissas.tma,1)+'%', explainVPL(scn), scn.vpl!=null&&scn.vpl<0],
+    [LABELS.tirCurto+' (TIR)', explainTIR(scn), scn.tir!=null&&scn.tir<num(state.premissas.tma)/100],
+    [LABELS.paybackCurto+' (Payback)', explainPayback(scn), scn.payback==null&&scn.fluxo0<0],
+    ['Ponto de equilíbrio (Ano '+y5+')', pe.valor!=null?fmtR$(pe.valor):'Não se aplica', pe.valor==null]
+  ]);
+
+  subTitle('Ponto de equilíbrio — detalhamento (Ano '+y5+')');
+  kvGrid([
+    ['Custos fixos', fmtR$(pe.cf)],
+    ['Custos variáveis', fmtR$(pe.cv)],
+    ['Receita líquida', fmtR$(pe.receitaLiq)]
+  ], 3);
+  subTitle('Como o projeto está montado');
+  kvGrid([
+    ['Patrimônio já existente (sem novo desembolso)', fmtR$(scn.inv.patrimonioExistente)],
+    ['Novo investimento — recursos próprios (Ano 0)', scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0)],
+    ['Novo investimento financiado', fmtR$(scn.inv.novoFinanciado)],
+    ['Capital de giro estimado', scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase)],
+    ['Depreciação anual total', fmtR$(scn.inv.deprecTotal)],
+    ['Renda mensal / beneficiário (Ano '+y5+') — caixa + autoconsumo', fmtR$(scn.anos[y5].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios)))]
+  ], 2);
+
+  /* ---------- indicadores por cenário (sensibilidade) ---------- */
+  newPage();
+  sectionTitle('Análise de Sensibilidade', '08', 'Etapa do sistema · Demonstrativo por cenário — Ano '+y5);
   kvGrid([
     ['Cenário otimista', 'receita +'+fmtNum(state.cenarios.otimistaReceita,0)+'% · custo −'+fmtNum(state.cenarios.otimistaCusto,0)+'%'],
     ['Cenário pessimista', 'receita −'+fmtNum(state.cenarios.pessimistaReceita,0)+'% · custo +'+fmtNum(state.cenarios.pessimistaCusto,0)+'%']
@@ -1644,22 +1941,33 @@ function exportPDF(){
   );
   table(['Medida','Pessimista','Realista','Otimista'], bodyScn,
     {columnStyles:{0:{halign:'left',cellWidth:170}},
-     didParseCell:function(d){ if(d.row.index>=bodyScn.length-2) d.cell.styles.fontStyle='bold'; }});
+     headStyles:{fillColor:C_GREEN_DARK, textColor:[255,255,255], fontStyle:'bold', halign:'center', fontSize:7.6},
+     didParseCell:function(d){
+       if(d.section==='head'){
+         if(d.column.index===1) d.cell.styles.fillColor=C_BRICK;
+         if(d.column.index===3) d.cell.styles.fillColor=C_GREEN;
+       }
+       if(d.row.index>=bodyScn.length-2) d.cell.styles.fontStyle='bold';
+     }});
+  calloutNote('Os cenários otimista e pessimista aplicam, de uma só vez, as variações percentuais definidas na aba 08 (Indicadores & Cenários) sobre toda a receita e todo o custo do projeto — servem para visualizar a sensibilidade do resultado a oscilações de preço e de despesas, sem alterar os dados originais lançados no sistema.');
 
-  /* ---------- RODAPÉS EM TODAS AS PÁGINAS ---------- */
+  /* ---------- rodapés em todas as páginas ---------- */
   const totalPages = doc.internal.getNumberOfPages();
   for(let p=1;p<=totalPages;p++){
     doc.setPage(p);
+    doc.setDrawColor(...C_LINE_SOFT); doc.setLineWidth(0.6);
+    doc.line(marginX, pageH-32, pageW-marginX, pageH-32);
+    doc.setFillColor(...C_GREEN_SOFT);
+    doc.circle(marginX+2, pageH-21, 2, 'F');
     doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_FAINT);
-    doc.text('SAF-PP · Caderno de Campo Digital — Análise Financeira do Empreendimento Rural', marginX, pageH-20);
-    doc.text('Página '+p+' de '+totalPages, pageW-marginX, pageH-20, {align:'right'});
+    doc.text('SAF Rural · Caderno de Campo Digital — Análise Financeira do Empreendimento Rural', marginX+9, pageH-18);
+    doc.text('Página '+p+' de '+totalPages, pageW-marginX, pageH-18, {align:'right'});
   }
 
   const nomeArq = 'analise-financeira-'+(state.meta.produtor||'projeto').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')+'.pdf';
   doc.save(nomeArq || 'analise-financeira.pdf');
   showToast('PDF exportado com sucesso.');
 }
-
 /* top bar actions */
 /* top bar actions */
 function wireTopBar(){
