@@ -53,7 +53,7 @@ function defaultState(){
 }
 
 let state = defaultState();
-let activeTab = "dashboard";
+let activeTab = "indicadores";
 
 /* ============================== STORAGE ==============================
    Camada dupla: tenta primeiro o armazenamento do ambiente Claude (window.storage),
@@ -364,7 +364,7 @@ function isAndamento(){ return !!(state.meta && state.meta.tipoProjeto === 'anda
    em vez de mostrar termos técnicos como "não converge" ou "NaN". */
 function explainVPL(scn){
   if(scn.vpl!=null && isFinite(scn.vpl)) return fmtR$(scn.vpl);
-  return 'Não foi possível calcular — confira os valores lançados';
+  return 'Não foi possível calcular — confira os valores';
 }
 function explainTIR(scn){
   if(scn.tir!=null && isFinite(scn.tir)) return fmtPct(scn.tir,1);
@@ -377,7 +377,7 @@ function explainTIR(scn){
   if(scn.vpl!=null && scn.vpl>0 && scn.payback!=null && scn.payback<0.5){
     return 'Extremamente alta — o investimento se paga em poucos meses, acima da nossa escala de cálculo';
   }
-  return 'Não foi possível calcular — confira os valores lançados';
+  return 'Não foi possível calcular — confira os valores';
 }
 function explainPayback(scn){
   if(scn.payback!=null && isFinite(scn.payback)) return fmtNum(scn.payback,2)+' anos';
@@ -499,7 +499,6 @@ function requestRender(){
 /* ============================== TABS DEFINITION ============================== */
 const TABS = [
   {id:'ajuda', n:'?', label:'Como Usar'},
-  {id:'dashboard', n:'00', label:'Painel Geral'},
   {id:'projeto', n:'01', label:'Dados & Premissas'},
   {id:'invest', n:'02', label:'Investimentos'},
   {id:'financ', n:'03', label:'Dívidas Ativas'},
@@ -512,7 +511,6 @@ const TABS = [
 
 const TAB_GROUPS = [
   {label:'Suporte',        ids:['ajuda']},
-  {label:'Diagnóstico',    ids:['dashboard']},
   {label:'Etapas do Projeto', ids:['projeto','invest','financ','custos','giro','receitas','fluxo']},
   {label:'Resultados',     ids:['indicadores']}
 ];
@@ -668,7 +666,7 @@ function renderAjuda(){
 
   /* ---- SEMÁFORO DE VIABILIDADE ---- */
   html += '<fieldset class="block"><legend>O semáforo de viabilidade</legend>'+
-    '<p style="margin:0 0 12px;font-size:12.8px;color:var(--ink-soft);line-height:1.6;">Na aba <b>Painel Geral</b> e na aba <b>Indicadores &amp; Cenários</b>, o sistema mostra um semáforo '+
+    '<p style="margin:0 0 12px;font-size:12.8px;color:var(--ink-soft);line-height:1.6;">Na aba <b>Indicadores &amp; Cenários</b>, o sistema mostra um semáforo '+
     'para resumir, de forma visual, se o projeto compensa ou não:</p>'+
     renderSemaforo({vpl:100,tir:0.5,payback:1,fluxo0:-1,cashflows:[-1,1,1,1,1,1],andamento:false})+
     renderSemaforo({vpl:50,tir:num(state.premissas.tma)/100+0.01,payback:4.5,fluxo0:-1,cashflows:[-1,1,1,1,1,1],andamento:false})+
@@ -757,61 +755,6 @@ function glossItem(nome, sigla, oQueE, comoLer, tag){
 }
 
 /* ============================== PANEL: DASHBOARD ============================== */
-function renderDashboard(){
-  const scn = buildScenario();
-  const inv = scn.inv;
-  const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
-  const rendaBenef = scn.anos[y].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios));
-
-  let html = '<div class="panel-head"><div><h2>Painel Geral</h2></div>'+
-    '<div style="font-size:12px;color:var(--ink-soft)">'+(state.meta.produtor||'')+' · '+(state.meta.atividade||'')+
-    (isAndamento()?' · <span style="color:var(--ochre-dark)">Projeto em Andamento</span>':' · Projeto do Zero')+'</div></div>';
-
-  html += renderSemaforo(scn);
-
-  html += '<div class="kpi-grid">'+
-    kpi(LABELS.vplCompleto, explainVPL(scn), scn.vpl!=null && scn.vpl<0, 'ao '+LABELS.tmaCurto.toLowerCase()+' de '+fmtNum(state.premissas.tma,1)+'% a.a.')+
-    kpi(LABELS.tirCompleto, explainTIR(scn), scn.tir!=null && scn.tir < num(state.premissas.tma)/100, 'compare com o '+LABELS.tmaCurto.toLowerCase())+
-    kpi(LABELS.paybackCompleto, explainPayback(scn), scn.payback==null && scn.fluxo0<0, 'tempo até o saldo ficar positivo')+
-    kpi('Renda mensal / beneficiário (ano '+y+')', fmtR$(rendaBenef), rendaBenef<0, num(state.meta.beneficiarios)+' beneficiário(s) · caixa do ano + autoconsumo')+
-    '</div>';
-
-  html += '<div class="two-col">';
-
-  // cash flow bars
-  html += '<div><h3 style="font-size:14px;margin-bottom:6px;">Fluxo de Caixa Líquido — Ano 0 a Ano 5</h3>';
-  const vals = scn.cashflows;
-  const maxAbs = Math.max(1,...vals.map(v=>Math.abs(v)));
-  html += '<div class="bars">';
-  vals.forEach((v,i)=>{
-    const h = Math.max(2, Math.round(Math.abs(v)/maxAbs*140));
-    html += '<div class="bar-col">'+
-      (v>=0? '<span class="bv">'+fmtR$(v)+'</span>' : '')+
-      '<div class="bar '+(v<0?'neg':'')+'" style="height:'+h+'px;'+(v<0?'align-self:flex-start;':'')+'"></div>'+
-      (v<0? '<span class="bv">'+fmtR$(v)+'</span>' : '')+
-      '<span class="bl">Ano '+i+'</span></div>';
-  });
-  html += '</div></div>';
-
-  // summary notes
-  html += '<div><h3 style="font-size:14px;margin-bottom:6px;">Como o projeto está montado</h3><ul class="note-list">'+
-    '<li>Patrimônio já existente (sem novo desembolso): <b>'+fmtR$(inv.patrimonioExistente)+'</b></li>'+
-    '<li>Novo investimento com recursos próprios (Ano 0): <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.novoProprioAno0))+'</b></li>'+
-    '<li>Novo investimento financiado: <b>'+fmtR$(inv.novoFinanciado)+'</b></li>'+
-    '<li>Capital de giro estimado: <b>'+(scn.andamento?'Não aplicável (projeto em andamento)':fmtR$(scn.giroBase))+'</b></li>'+
-    '<li>Depreciação anual total: <b>'+fmtR$(inv.deprecTotal)+'</b> (custo contábil, não sai do caixa)</li>'+
-    '<li>Reposição de bens prevista dentro dos 5 anos: '+repoList(inv.reposicoes)+'</li>'+
-    '</ul></div>';
-
-  html += '</div>';
-  
-  document.getElementById('content').innerHTML = html;
-}
-function repoList(rep){
-  const parts=[];
-  YEARS.forEach(y=>{ if(rep[y]>0) parts.push('Ano '+y+': '+fmtR$(rep[y])); });
-  return parts.length? parts.join(' · ') : 'nenhuma no horizonte';
-}
 function kpi(lbl,val,neg,sub,mini){
   return '<div class="kpi'+(mini?' mini':'')+'"><div class="lbl">'+lbl+'</div><div class="val '+(neg?'neg':'')+'">'+val+'</div><div class="sub">'+(sub||'')+'</div></div>';
 }
@@ -852,7 +795,7 @@ function renderProjeto(){
     fld('Folga mínima da TIR sobre a TMA para ficar "verde" (pontos percentuais)','premissas.folgaTirMinima', state.premissas.folgaTirMinima, {type:'number', step:0.5, min:0})+
     fld('Payback acima do qual o sinal fica "amarelo" (anos)','premissas.paybackAlerta', state.premissas.paybackAlerta, {type:'number', step:0.5, min:0})+
     '</div></fieldset>';
-  html += '<div class="panel-note" style="margin-top:-8px;">Esses dois valores definem quando o semáforo (Painel Geral) passa de verde para amarelo: uma folga pequena entre a rentabilidade do projeto (TIR) e o '+LABELS.tmaCurto.toLowerCase()+', ou um tempo de retorno (payback) considerado longo. Ajuste conforme o critério da sua instituição/técnico responsável — os valores padrão (3 p.p. e 4 anos) são uma referência geral, não uma norma fixa.</div>';
+  html += '<div class="panel-note" style="margin-top:-8px;">Esses dois valores definem quando o semáforo (Indicadores &amp; Cenários) passa de verde para amarelo: uma folga pequena entre a rentabilidade do projeto (TIR) e o '+LABELS.tmaCurto.toLowerCase()+', ou um tempo de retorno (payback) considerado longo. Ajuste conforme o critério da sua instituição/técnico responsável — os valores padrão (3 p.p. e 4 anos) são uma referência geral, não uma norma fixa.</div>';
 
   html += '<div class="panel-note"><b>Importante:</b> lance todos os valores (preços, custos, parcelas) em <u>preços de hoje</u>, sem embutir inflação futura — e use como '+LABELS.tmaCurto.toLowerCase()+' uma taxa também "de hoje" (ex.: o que a poupança ou um CDB pagariam agora), para manter a comparação justa. '+
     'O percentual de impostos/taxas é aplicado de forma simplificada, direto sobre a receita comercializada (como no Simples/Funrural) — ele não substitui uma consulta ao regime tributário específico do seu caso, principalmente se a atividade estiver em faixas ou regras diferentes.</div>';
@@ -1187,8 +1130,14 @@ function renderIndicadores(){
   const scn = buildScenario();
   const y = clamp(num(state.premissas.anoAnalise)||5,1,5);
   const pe = pontoEquilibrio(scn);
+  const rendaBenef = scn.anos[y].rendaFamiliar/12/Math.max(1,num(state.meta.beneficiarios));
 
-  let html = '<div class="panel-head"><div><h2>Indicadores &amp; Cenários</h2></div></div>';
+  let html = '<div class="panel-head"><div><h2>Indicadores &amp; Cenários</h2></div>'+
+    '<div style="font-size:12px;color:var(--ink-soft)">'+(state.meta.produtor||'')+' · '+(state.meta.atividade||'')+
+    (isAndamento()?' · <span style="color:var(--ochre-dark)">Projeto em Andamento</span>':' · Projeto do Zero')+'</div></div>';
+
+  /* -------- DIVISÃO 1: indicadores gerais do projeto -------- */
+  html += '<fieldset class="block"><legend>Viabilidade geral do projeto</legend>';
 
   html += renderSemaforo(scn);
 
@@ -1196,12 +1145,41 @@ function renderIndicadores(){
     kpi(LABELS.vplCompleto+' (ao '+fmtNum(state.premissas.tma,1)+'% a.a.)', explainVPL(scn), scn.vpl!=null && scn.vpl<0)+
     kpi(LABELS.tirCompleto, explainTIR(scn), scn.tir!=null && scn.tir < num(state.premissas.tma)/100)+
     kpi(LABELS.paybackCompleto, explainPayback(scn), scn.payback==null && scn.fluxo0<0)+
+    '</div>';
+
+  html += '<h3 style="font-size:14px;margin:16px 0 6px;">Fluxo de Caixa Líquido — Ano 0 a Ano 5</h3>';
+  const vals = scn.cashflows;
+  const maxAbs = Math.max(1,...vals.map(v=>Math.abs(v)));
+  html += '<div class="bars">';
+  vals.forEach((v,i)=>{
+    const h = Math.max(2, Math.round(Math.abs(v)/maxAbs*140));
+    html += '<div class="bar-col">'+
+      (v>=0? '<span class="bv">'+fmtR$(v)+'</span>' : '')+
+      '<div class="bar '+(v<0?'neg':'')+'" style="height:'+h+'px;'+(v<0?'align-self:flex-start;':'')+'"></div>'+
+      (v<0? '<span class="bv">'+fmtR$(v)+'</span>' : '')+
+      '<span class="bl">Ano '+i+'</span></div>';
+  });
+  html += '</div>';
+
+  html += '</fieldset>';
+
+  /* -------- DIVISÃO 2: indicadores por ano -------- */
+  html += '<fieldset class="block"><legend>Indicadores do Ano '+y+'</legend>';
+
+  html += '<div class="grid g4" style="margin-bottom:10px;">'+
+    selectFld('Ano de análise', 'premissas.anoAnalise', String(y), YEARS.map(yy=>({v:String(yy), l:'Ano '+yy})))+
+    '</div>';
+
+  html += '<div class="kpi-grid">'+
+    kpi('Renda mensal / beneficiário (ano '+y+')', fmtR$(rendaBenef), rendaBenef<0, num(state.meta.beneficiarios)+' beneficiário(s) · caixa do ano + autoconsumo')+
     kpi('Ponto de equilíbrio (Ano '+y+')', pe.valor!=null?fmtR$(pe.valor):'Não se aplica — receita não cobre custos variáveis', pe.valor==null)+
     '</div>';
 
-  html += '<fieldset class="block"><legend>Ponto de equilíbrio — detalhamento (Ano '+y+')</legend><div class="grid g3">'+
+  html += '<div class="grid g3" style="margin-top:10px;">'+
     kpi('Custos fixos', fmtR$(pe.cf), false, '', true)+kpi('Custos variáveis', fmtR$(pe.cv), false, '', true)+kpi('Receita líquida', fmtR$(pe.receitaLiq), false, '', true)+
-    '</div><div class="panel-note" style="margin:12px 0 0;">Este valor é o ponto de equilíbrio <b>agregado</b>, considerando o mix atual de produtos/receitas. Se você vende mais de um produto com margens muito diferentes entre si, o valor em R$ mistura as duas coisas — ele diz "quanto de receita total", não qual produto sustenta o negócio.</div></fieldset>';
+    '</div><div class="panel-note" style="margin:12px 0 0;">O ponto de equilíbrio é <b>agregado</b>, considerando o mix atual de produtos/receitas. Se você vende mais de um produto com margens muito diferentes entre si, o valor em R$ mistura as duas coisas — ele diz "quanto de receita total", não qual produto sustenta o negócio.</div>';
+
+  html += '</fieldset>';
 
   // Cenarios config
   html += '<fieldset class="block"><legend>Configurar cenários de sensibilidade</legend><div class="grid g4">'+
@@ -1232,7 +1210,6 @@ function renderAll(){
   renderTabs();
   switch(activeTab){
     case 'ajuda': renderAjuda(); break;
-    case 'dashboard': renderDashboard(); break;
     case 'projeto': renderProjeto(); break;
     case 'invest': renderInvest(); break;
     case 'financ': renderFinanc(); break;
