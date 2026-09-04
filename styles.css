@@ -109,7 +109,7 @@ html,body{min-height:100%;}
   background:linear-gradient(90deg, var(--green-soft), var(--ochre));
   opacity:.9;
 }
-.topbar-inner{
+.topbar-inner{ min-height: 68px;
   position:relative; z-index:2;
   max-width:1400px; margin:0 auto;
   display:flex; align-items:center; justify-content:space-between; gap:16px;
@@ -545,7 +545,7 @@ footer.appfoot{
   .brand-mark{width:34px;height:34px;border-radius:10px;}
   .brand-mark svg{width:17px;height:17px;}
   .brand-text h1{font-size:13.5px;max-width:42vw;}
-  .brand-text .sub{display:none;}
+  .brand-text .sub{font-size:10px;}
   .status-pill{padding:6px 9px;}
   .status-pill span:not(.dot){display:none;}
   .hamburger-btn{width:34px;height:34px;}
