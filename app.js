@@ -53,7 +53,7 @@ function defaultState(){
 }
 
 let state = defaultState();
-let activeTab = "indicadores";
+let activeTab = "projeto";
 
 /* ============================== STORAGE ==============================
    Camada dupla: tenta primeiro o armazenamento do ambiente Claude (window.storage),
